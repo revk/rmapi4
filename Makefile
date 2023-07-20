@@ -6,6 +6,8 @@ update:
 	git submodule update --init --recursive --remote
 	git commit -a -m "Library update"
 
+AJL/ajl.c:	update
+
 AJL/ajlcurl.o: AJL/ajl.c
 	make -C AJL
 
