@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <err.h>
-#include <ajl.h>
+#include <ajlcurl.h>
 
 int debug = 0;
 
