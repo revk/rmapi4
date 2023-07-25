@@ -42,6 +42,7 @@ main (int argc, const char *argv[])
    const char *description = getenv ("LDESCRIPTION");
    const char *reference1 = getenv ("LREFERENCE1");
    const char *reference2 = getenv ("LREFERENCE2");
+   const char *labelpdf = NULL;
    int weight = atoi (getenv ("WEIGHT") ? : getenv ("RMAPIWEIGHT") ? : "");     // Grammes
    int length = atoi (getenv ("LENGTH") ? : "");        // mm
    int width = atoi (getenv ("WIDTH") ? : "");  // mm
@@ -55,8 +56,9 @@ main (int argc, const char *argv[])
    poptContext optCon;          // context for parsing command-line options
    {                            // POPT
       const struct poptOption optionsTable[] = {
-         {"user", 0, POPT_ARG_STRING, &user, 0, "User", "user"},
+         {"user", 'd', POPT_ARG_STRING, &user, 0, "User", "user"},
          {"create-shipment", 's', POPT_ARG_NONE, &createshipment, 0, "Create Shipment", NULL},
+         {"label-pdf", 'o', POPT_ARG_STRING, &labelpdf, 0, "Label PDF file", "filename"},
          {"contact-name", 0, POPT_ARG_STRING, &contactname, 0, "Contact Name", "Name ($LNAME)"},
          {"company-name", 0, POPT_ARG_STRING, &companyname, 0, "Company Name", "Company ($LCOMPANY)"},
          {"contact-email", 0, POPT_ARG_STRING, &contactemail, 0, "Contact Email", "Email ($LEMAIL)"},
@@ -207,6 +209,8 @@ main (int argc, const char *argv[])
       j_store_string (j, "DescriptionOfGoods", description);
       j_store_string (j, "WeightUnitOfMeasure", "KG");
       j_store_string (j, "DimensionsUnitOfMeasure", "CM");
+      // TODO SHIP DATE as parameter
+      // TODO SAFE PLACE
       j_store_null (j, "ShipmentDate"); // Today
       j = j_store_object (tx, "Shipper");
       j_store_string (j, "ShippingAccountId", accountid);
@@ -216,9 +220,10 @@ main (int argc, const char *argv[])
          j_store_string (j, "Reference2", reference2);
       j = j_store_object (tx, "Destination");
       j = j_store_object (j, "Address");
-      // TODO more
       if (contactname && *contactname)
          j_store_string (j, "ContactName", contactname);
+      if (companyname && *companyname)
+         j_store_string (j, "CompanyName", companyname);
       if (contactemail && *contactemail)
          j_store_string (j, "ContactEmail", contactemail);
       if (contactphone && *contactphone)
@@ -229,13 +234,14 @@ main (int argc, const char *argv[])
          j_store_string (j, "Line2", line2);
       if (line3 && *line3)
          j_store_string (j, "Line3", line3);
-      if (postcode && *postcode)
-         j_store_string (j, "Postcode", postcode);
       if (town && *town)
          j_store_string (j, "Town", town);
+      if (postcode && *postcode)
+         j_store_string (j, "Postcode", postcode);
+      if (county && *county)
+         j_store_string (j, "County", county);
       if (countrycode && *countrycode)
          j_store_string (j, "CountryCode", countrycode);
-
       j = j_store_array (tx, "Packages");
       j = j_append_object (j);
       if (weight)
@@ -261,6 +267,29 @@ main (int argc, const char *argv[])
             }
          }
          errx (1, "Failed: %s", e);
+      }
+      j_t packages = j_find (rx, "Packages");
+      j_t p = j_first (packages);
+      while (p)
+      {                         // Should be one, but...
+         printf ("%s", j_get (p, "TrackingNumber"));
+         p = j_next (p);
+         if (p)
+            printf ("\t");
+      }
+      if (labelpdf)
+      {
+         const char *label = j_get (rx, "Labels");
+         FILE *f = fopen (labelpdf, "w");
+         if (label && *label)
+            if (!f)
+               err (1, "Cannot write %s", labelpdf);
+         unsigned char *bin = NULL;
+         size_t len = j_base64d (label, &bin);
+         if (len)
+            fwrite (bin, len, 1, f);
+         free (bin);
+         fclose (f);
       }
       j_delete (&tx);
       j_delete (&rx);
