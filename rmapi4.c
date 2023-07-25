@@ -13,8 +13,6 @@
 #include <sys/file.h>
 #include <ajlcurl.h>
 
-int debug = 0;
-
 void
 fail (const char *e, j_t rx)
 {
@@ -28,6 +26,9 @@ fail (const char *e, j_t rx)
          e = j_next (e);
       }
    }
+   const char *msg = j_get (rx, "Message");
+   if (msg)
+      fprintf (stderr, "Error %s\n", msg);
    errx (1, "Failed: %s", e);
 }
 
@@ -35,6 +36,8 @@ int
 main (int argc, const char *argv[])
 {
    j_iso8601utc = 1;
+   int debug = 0;
+   int quiet = 0;
    const char *user = getenv ("DB") ? : "default";
    const char *auth_file = "/etc/rmapi4.json";
    const char *site = "proshipping.net";
@@ -59,7 +62,8 @@ main (int argc, const char *argv[])
    const char *description = getenv ("LDESCRIPTION");
    const char *reference1 = getenv ("LREFERENCE1");
    const char *reference2 = getenv ("LREFERENCE2");
-   const char *labelpdf = NULL;
+   const char *outfile = NULL;
+   const char *outprefix = NULL;
    int weight = atoi (getenv ("WEIGHT") ? : getenv ("RMAPIWEIGHT") ? : "");     // Grammes
    int length = atoi (getenv ("LENGTH") ? : "");        // mm
    int width = atoi (getenv ("WIDTH") ? : "");  // mm
@@ -76,7 +80,8 @@ main (int argc, const char *argv[])
          {"user", 'd', POPT_ARG_STRING, &user, 0, "User", "user"},
          {"create-shipment", 's', POPT_ARG_NONE, &createshipment, 0, "Create Shipment", NULL},
          {"manifest", 's', POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
-         {"label-pdf", 'o', POPT_ARG_STRING, &labelpdf, 0, "Label PDF file", "filename"},
+         {"outprefix", 'p', POPT_ARG_STRING, &outprefix, 0, "Output prefix", "file/pathname"},
+         {"outfile", 'o', POPT_ARG_STRING, &outfile, 0, "Output file", "filename"},
          {"contact-name", 0, POPT_ARG_STRING, &contactname, 0, "Contact Name", "Name ($LNAME)"},
          {"company-name", 0, POPT_ARG_STRING, &companyname, 0, "Company Name", "Company ($LCOMPANY)"},
          {"contact-email", 0, POPT_ARG_STRING, &contactemail, 0, "Contact Email", "Email ($LEMAIL)"},
@@ -102,6 +107,7 @@ main (int argc, const char *argv[])
          {"client-key", 0, POPT_ARG_STRING, &clientkey, 0, "Client Key (for setup)", "Key"},
          {"account", 0, POPT_ARG_STRING, &account, 0, "Shipping account (for setup)", "Key"},
          {"site", 0, POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &site, 0, "Base URL", "hostname"},
+         {"quiet", 'v', POPT_ARG_NONE, &quiet, 0, "Quiet"},
          {"debug", 'v', POPT_ARG_NONE, &debug, 0, "Debug"},
          POPT_AUTOHELP {}
       };
@@ -119,6 +125,8 @@ main (int argc, const char *argv[])
          return -1;
       }
    }
+   if (outfile && outprefix)
+      errx (1, "Use --outfile or --outprefix, not both");
    CURL *curl = curl_easy_init ();
    if (!curl)
       errx (1, "malloc");
@@ -167,7 +175,7 @@ main (int argc, const char *argv[])
          char *e = j_curl (J_CURL_POST | J_CURL_BASIC, curl, tx, rx, basic, "https://authentication.%s/connect/token", site);
          free (basic);
          if (e)
-            errx (1, "Failed: %s", e);
+            fail (e, rx);
          if (strcasecmp (j_get (rx, "token_type") ? : "", "Bearer"))
             errx (1, "Failed to get authentication");
          bearer = j_get (rx, "access_token");
@@ -187,7 +195,7 @@ main (int argc, const char *argv[])
          char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/shippingAccounts", site);
          j_log (debug, "rmapi", "shippingAccounts", NULL, rx);
          if (e)
-            errx (1, "Failed: %s", e);
+            fail (e, rx);
          j_t list = j_find (rx, "ShippingAccounts");
          if (!list)
             errx (1, "No ShippingAccounts");
@@ -276,30 +284,51 @@ main (int argc, const char *argv[])
          fail (e, rx);
       j_t packages = j_find (rx, "Packages");
       j_t p = j_first (packages);
+      const char *trackingnumber = NULL;
       while (p)
       {                         // Should be one, but...
-         printf ("%s", j_get (p, "TrackingNumber"));
+         trackingnumber = j_get (p, "TrackingNumber");
          const char *shipmentid = j_get (p, "ShipmentId");
-         e = j_curl (J_CURL_GET, curl, NULL, NULL, bearer, "https://api.%s/v4/shipments/printLabel/rm/%s", site, shipmentid);
+         if (!quiet)
+            printf ("%s", trackingnumber);
+         j_t rx = j_create ();
+         e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/shipments/printLabel/rm/%s", site, shipmentid);
+         // Not bothering to log this
          if (e)
-            errx (1, "Print shipment failed: %s", e);
+            fail (e, rx);
+         j_delete (&rx);
          p = j_next (p);
          if (p)
-            printf ("\t");
+         {
+            if (!quiet)
+               printf ("\t");
+            warnx ("Multiple packages");
+         }
       }
-      if (labelpdf)
+      if (outfile || outprefix)
       {
+         char *fn = NULL;
+         const char *format = j_get (rx, "LabelFormat");
+         if (outfile)
+            fn = strdup (outfile);
+         else if (!trackingnumber)
+            errx (1, "No tracking number");
+         else if (asprintf (&fn, "%s%s.%s", outprefix, trackingnumber, format) < 0)
+            errx (1, "malloc");
          const char *label = j_get (rx, "Labels");
-         FILE *f = fopen (labelpdf, "w");
          if (label && *label)
+         {
+            FILE *f = fopen (fn, "w");
             if (!f)
-               err (1, "Cannot write %s", labelpdf);
-         unsigned char *bin = NULL;
-         size_t len = j_base64d (label, &bin);
-         if (len)
-            fwrite (bin, len, 1, f);
-         free (bin);
-         fclose (f);
+               err (1, "Cannot write %s", fn);
+            free (fn);
+            unsigned char *bin = NULL;
+            size_t len = j_base64d (label, &bin);
+            if (len)
+               fwrite (bin, len, 1, f);
+            free (bin);
+            fclose (f);
+         }
       }
       j_delete (&tx);
       j_delete (&rx);
@@ -314,19 +343,50 @@ main (int argc, const char *argv[])
       j_log (debug, "rmapi", "Manifest", tx, rx);
       if (e)
          fail (e, rx);
-      j_t m=j_first(rx);
-      while(m)
+      j_t m = j_first (rx);
+      while (m)
       {
-      const char *image=j_get(m,"ManifestImage");
-      if(image)
-      {
-	        unsigned char *bin = NULL;
-           size_t len = j_base64d (image, &bin);
-           if (len)
-              fwrite (bin, len, 1, stdout);
-           free (bin);
-      }
-      m=j_next(m);
+         const char *manifestnumber = j_get (m, "ManifestNumber");
+         const char *image = j_get (m, "ManifestImage");
+         if (image)
+         {
+            unsigned char *bin = NULL;
+            size_t len = j_base64d (image, &bin);
+            if (len)
+            {
+               char *fn = NULL;
+               const char *format = "PDF";      // Always PDF
+               if (outfile)
+                  fn = strdup (outfile);
+               else if (outprefix)
+               {
+                  if (!manifestnumber)
+                     errx (1, "No manifest number");
+                  if (asprintf (&fn, "%s%s.%s", outprefix, manifestnumber, format) < 0)
+                     errx (1, "malloc");
+               }
+               if (fn)
+               {
+                  FILE *f = fopen (fn, "w");
+                  if (!f)
+                     err (1, "Cannot create %s", fn);
+                  free (fn);
+                  fwrite (bin, len, 1, f);
+                  fclose (f);
+                  if (!quiet)
+                     printf ("%s", manifestnumber);
+               } else
+                  fwrite (bin, len, 1, stdout);
+            }
+            free (bin);
+         }
+         m = j_next (m);
+         if (m)
+         {
+            warnx ("Multiple manifest");
+            if ((outfile || outprefix) && !quiet)
+               printf ("\t");
+         }
       }
       j_delete (&tx);
       j_delete (&rx);
