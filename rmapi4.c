@@ -62,18 +62,18 @@ main (int argc, const char *argv[])
    const char *description = NULL;
    const char *reference1 = NULL;
    const char *reference2 = NULL;
+   const char *safeplace = NULL;
    const char *outfile = NULL;
    const char *outprefix = NULL;
    int weight = 0;
    int length = 0;
    int width = 0;
    int height = 0;
-   if (!countrycode || !*countrycode)
-      countrycode = "GB";
-   if (!contenttype || !*contenttype)
-      contenttype = "NDX";      // Non document default
-   if (!description || !*description)
-      description = "Goods";
+   int pdf = 0;
+   int png = 0;
+   int json = 0;
+   int zpl203 = 0;
+   int zpl300 = 0;
    poptContext optCon;          // context for parsing command-line options
    {                            // POPT
       const struct poptOption optionsTable[] = {
@@ -82,6 +82,11 @@ main (int argc, const char *argv[])
          {"manifest", 's', POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
          {"outprefix", 'p', POPT_ARG_STRING, &outprefix, 0, "Output prefix", "file/pathname"},
          {"outfile", 'o', POPT_ARG_STRING, &outfile, 0, "Output file", "filename"},
+         {"pdf", 0, POPT_ARG_NONE, &pdf, 0, "PDF format"},
+         {"png", 0, POPT_ARG_NONE, &png, 0, "PNG format"},
+         {"json", 0, POPT_ARG_NONE, &json, 0, "JSON (datastream) format"},
+         {"zpl203", 0, POPT_ARG_NONE, &zpl203, 0, "Zebra 203dpi format"},
+         {"zpl300", 0, POPT_ARG_NONE, &zpl300, 0, "Zebra 300dpi format"},
          {"contact-name", 0, POPT_ARG_STRING, &contactname, 0, "Contact Name", "Name"},
          {"company-name", 0, POPT_ARG_STRING, &companyname, 0, "Company Name", "Company"},
          {"contact-email", 0, POPT_ARG_STRING, &contactemail, 0, "Contact Email", "Email"},
@@ -98,6 +103,7 @@ main (int argc, const char *argv[])
          {"description", 0, POPT_ARG_STRING, &description, 0, "Description", "Description (Goods)"},
          {"reference", 0, POPT_ARG_STRING, &reference1, 0, "Reference1", "Reference1"},
          {"reference2", 0, POPT_ARG_STRING, &reference2, 0, "Reference2", "Reference2"},
+         {"safe-plave", 0, POPT_ARG_STRING, &safeplace, 0, "Safe place", "Text"},
          {"weight", 0, POPT_ARG_INT, &weight, 0, "Weight", "g ($WEIGHT)"},
          {"length", 0, POPT_ARG_INT, &length, 0, "Length", "mm ($LENGTH)"},
          {"width", 0, POPT_ARG_INT, &width, 0, "Width", "mm ($WIDTH)"},
@@ -109,7 +115,7 @@ main (int argc, const char *argv[])
          {"site", 0, POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &site, 0, "Base URL", "hostname"},
          {"quiet", 'v', POPT_ARG_NONE, &quiet, 0, "Quiet"},
          {"debug", 'v', POPT_ARG_NONE, &debug, 0, "Debug"},
-	 // TODO international stuff
+         // TODO international stuff
          POPT_AUTOHELP {}
       };
 
@@ -126,6 +132,16 @@ main (int argc, const char *argv[])
          return -1;
       }
    }
+   if (!countrycode || !*countrycode)
+      countrycode = "GB";
+   if (servicecode && *servicecode && (!contenttype || !*contenttype))
+      contenttype = (!strncmp (servicecode, "CRL", 3) ? "DOX" : "NDX"); // Default, assume document for 1st/2nd post
+   if (!description || !*description)
+      description = "Goods";
+   if (!pdf && !png && !json && !zpl203 && !zpl300)
+      pdf = 1;
+   if (pdf + png + json + zpl203 + zpl300 != 1)
+      errx (1, "Pick one, --pdf, --png, --json, --zpl203, or --zpl300");
    if (outfile && outprefix)
       errx (1, "Use --outfile or --outprefix, not both");
    CURL *curl = curl_easy_init ();
@@ -231,6 +247,7 @@ main (int argc, const char *argv[])
          rx = j_create (),
          j;
       j = j_store_object (tx, "ShipmentInformation");
+      j_store_string (j, "LabelFormat", pdf ? "PDF" : png ? "PNG" : zpl203 ? "ZPL203DPI" : zpl300 ? "ZPL300DPI" : "DATASTREAM");
       j_store_string (j, "ContentType", contenttype);
       j_store_string (j, "ServiceCode", servicecode);
       j_store_string (j, "DescriptionOfGoods", description);
@@ -310,25 +327,32 @@ main (int argc, const char *argv[])
       {
          char *fn = NULL;
          const char *format = j_get (rx, "LabelFormat");
+         if (format && !strcmp (format, "DATASTREAM"))
+            format = "JSON";
          if (outfile)
             fn = strdup (outfile);
          else if (!trackingnumber)
             errx (1, "No tracking number");
          else if (asprintf (&fn, "%s%s.%s", outprefix, trackingnumber, format) < 0)
             errx (1, "malloc");
-         const char *label = j_get (rx, "Labels");
-         if (label && *label)
+         if (!strcmp (format, "JSON"))
+            j_err (j_write_file (rx, fn));
+         else
          {
-            FILE *f = fopen (fn, "w");
-            if (!f)
-               err (1, "Cannot write %s", fn);
-            free (fn);
-            unsigned char *bin = NULL;
-            size_t len = j_base64d (label, &bin);
-            if (len)
-               fwrite (bin, len, 1, f);
-            free (bin);
-            fclose (f);
+            const char *label = j_get (rx, "Labels");
+            if (label && *label)
+            {
+               FILE *f = fopen (fn, "w");
+               if (!f)
+                  err (1, "Cannot write %s", fn);
+               free (fn);
+               unsigned char *bin = NULL;
+               size_t len = j_base64d (label, &bin);
+               if (len)
+                  fwrite (bin, len, 1, f);
+               free (bin);
+               fclose (f);
+            }
          }
       }
       j_delete (&tx);
