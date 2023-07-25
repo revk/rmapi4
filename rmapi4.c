@@ -46,28 +46,28 @@ main (int argc, const char *argv[])
    const char *account = NULL;
    int createshipment = 0;
    int manifest = 0;
-   const char *contactname = getenv ("LNAME");
-   const char *companyname = getenv ("LCOMPANY");
-   const char *contactemail = getenv ("LEMAIL");
-   const char *contactphone = getenv ("LSMS") ? : getenv ("LTEL");
-   const char *line1 = getenv ("LADDRESS1");
-   const char *line2 = getenv ("LADDRESS2");
-   const char *line3 = getenv ("LADDRESS3");
-   const char *town = getenv ("LPOSTTOWN");
-   const char *postcode = getenv ("LPOSTCODE");
-   const char *county = getenv ("LCOUNTY");;
-   const char *countrycode = getenv ("LCOUNTRY");
-   const char *contenttype = getenv ("LCONTENTTYPE");
-   const char *servicecode = getenv ("LSERVICECODE");
-   const char *description = getenv ("LDESCRIPTION");
-   const char *reference1 = getenv ("LREFERENCE1");
-   const char *reference2 = getenv ("LREFERENCE2");
+   const char *contactname = NULL;
+   const char *companyname = NULL;
+   const char *contactemail = NULL;
+   const char *contactphone = NULL;
+   const char *line1 = NULL;
+   const char *line2 = NULL;
+   const char *line3 = NULL;
+   const char *town = NULL;
+   const char *postcode = NULL;
+   const char *county = NULL;
+   const char *countrycode = NULL;
+   const char *contenttype = NULL;
+   const char *servicecode = NULL;
+   const char *description = NULL;
+   const char *reference1 = NULL;
+   const char *reference2 = NULL;
    const char *outfile = NULL;
    const char *outprefix = NULL;
-   int weight = atoi (getenv ("WEIGHT") ? : getenv ("RMAPIWEIGHT") ? : "");     // Grammes
-   int length = atoi (getenv ("LENGTH") ? : "");        // mm
-   int width = atoi (getenv ("WIDTH") ? : "");  // mm
-   int height = atoi (getenv ("HEIGHT") ? : "");        // mm
+   int weight = 0;
+   int length = 0;
+   int width = 0;
+   int height = 0;
    if (!countrycode || !*countrycode)
       countrycode = "GB";
    if (!contenttype || !*contenttype)
@@ -82,22 +82,22 @@ main (int argc, const char *argv[])
          {"manifest", 's', POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
          {"outprefix", 'p', POPT_ARG_STRING, &outprefix, 0, "Output prefix", "file/pathname"},
          {"outfile", 'o', POPT_ARG_STRING, &outfile, 0, "Output file", "filename"},
-         {"contact-name", 0, POPT_ARG_STRING, &contactname, 0, "Contact Name", "Name ($LNAME)"},
-         {"company-name", 0, POPT_ARG_STRING, &companyname, 0, "Company Name", "Company ($LCOMPANY)"},
-         {"contact-email", 0, POPT_ARG_STRING, &contactemail, 0, "Contact Email", "Email ($LEMAIL)"},
-         {"contact-phone", 0, POPT_ARG_STRING, &contactphone, 0, "Contact Phone", "Number ($LSMS/$LTEL)"},
-         {"line1", 0, POPT_ARG_STRING, &line1, 0, "Address line 1", "Address ($LADDRESS1)"},
-         {"line2", 0, POPT_ARG_STRING, &line2, 0, "Address line 2", "Address ($LADDRESS2)"},
-         {"line3", 0, POPT_ARG_STRING, &line3, 0, "Address line 3", "Address ($LADDRESS3)"},
-         {"town", 0, POPT_ARG_STRING, &town, 0, "Town", "Post town ($LPOSTTOWN)"},
-         {"postcode", 0, POPT_ARG_STRING, &postcode, 0, "Postcode", "Post code ($LPOSTCODE)"},
-         {"county", 0, POPT_ARG_STRING, &county, 0, "County", "County ($LCOUNTY)"},
-         {"country-code", 0, POPT_ARG_STRING, &countrycode, 0, "Country code", "Country ($LCOUNTRY/GB)"},
-         {"content-type", 0, POPT_ARG_STRING, &contenttype, 0, "Content Type", "NDX/DOX/HV ($LCONTENTTYPE/NDX)"},
-         {"service-code", 0, POPT_ARG_STRING, &servicecode, 0, "Service code", "Service code ($LSERVICECODE)"},
-         {"description", 0, POPT_ARG_STRING, &description, 0, "Description", "Description ($LDESCRIPTION/Goods)"},
-         {"reference1", 0, POPT_ARG_STRING, &reference1, 0, "Reference1", "Reference1 ($LREFERENCE1)"},
-         {"reference2", 0, POPT_ARG_STRING, &reference2, 0, "Reference2", "Reference2 ($LREFERENCE2)"},
+         {"contact-name", 0, POPT_ARG_STRING, &contactname, 0, "Contact Name", "Name"},
+         {"company-name", 0, POPT_ARG_STRING, &companyname, 0, "Company Name", "Company"},
+         {"contact-email", 0, POPT_ARG_STRING, &contactemail, 0, "Contact Email", "Email"},
+         {"contact-phone", 0, POPT_ARG_STRING, &contactphone, 0, "Contact Phone", "Number"},
+         {"line1", 0, POPT_ARG_STRING, &line1, 0, "Address line 1", "Address"},
+         {"line2", 0, POPT_ARG_STRING, &line2, 0, "Address line 2", "Address"},
+         {"line3", 0, POPT_ARG_STRING, &line3, 0, "Address line 3", "Address"},
+         {"town", 0, POPT_ARG_STRING, &town, 0, "Town", "Post town"},
+         {"postcode", 0, POPT_ARG_STRING, &postcode, 0, "Postcode", "Post code"},
+         {"county", 0, POPT_ARG_STRING, &county, 0, "County", "County"},
+         {"country-code", 0, POPT_ARG_STRING, &countrycode, 0, "Country code", "Country (GB)"},
+         {"content-type", 0, POPT_ARG_STRING, &contenttype, 0, "Content Type", "NDX/DOX/HV (NDX)"},
+         {"service-code", 0, POPT_ARG_STRING, &servicecode, 0, "Service code", "Service code"},
+         {"description", 0, POPT_ARG_STRING, &description, 0, "Description", "Description (Goods)"},
+         {"reference", 0, POPT_ARG_STRING, &reference1, 0, "Reference1", "Reference1"},
+         {"reference2", 0, POPT_ARG_STRING, &reference2, 0, "Reference2", "Reference2"},
          {"weight", 0, POPT_ARG_INT, &weight, 0, "Weight", "g ($WEIGHT)"},
          {"length", 0, POPT_ARG_INT, &length, 0, "Length", "mm ($LENGTH)"},
          {"width", 0, POPT_ARG_INT, &width, 0, "Width", "mm ($WIDTH)"},
@@ -109,6 +109,7 @@ main (int argc, const char *argv[])
          {"site", 0, POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &site, 0, "Base URL", "hostname"},
          {"quiet", 'v', POPT_ARG_NONE, &quiet, 0, "Quiet"},
          {"debug", 'v', POPT_ARG_NONE, &debug, 0, "Debug"},
+	 // TODO international stuff
          POPT_AUTOHELP {}
       };
 
