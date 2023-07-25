@@ -16,6 +16,7 @@ int debug = 0;
 int
 main (int argc, const char *argv[])
 {
+   j_iso8601utc = 1;
    const char *user = getenv ("DB") ? : "default";
    const char *auth_file = "/etc/rmapi4.json";
    const char *baseurl = "https://authentication.proshipping.net";
@@ -81,13 +82,27 @@ main (int argc, const char *argv[])
          j_t tx = j_create (),
             rx = j_create ();
          j_store_string (tx, "grant_type", "client_credentials");
-         char *e = j_curl (J_CURL_POST, curl, tx, rx, NULL, "%s/connect/token", baseurl);
+         char *basic = NULL;
+         if (asprintf (&basic, "%s:%s", j_get (a, "client-id"), j_get (a, "client-key")) < 0)
+            errx (1, "malloc");
+         char *e = j_curl (J_CURL_POST | J_CURL_BASIC, curl, tx, rx, basic, "%s/connect/token", baseurl);
+         free (basic);
          if (e)
             errx (1, "Failed: %s", e);
-         j_err (j_write (tx, stderr));
-         j_err (j_write (rx, stderr));
+         if (strcasecmp (j_get (rx, "token_type") ? : "", "Bearer"))
+            errx (1, "Failed to get authentication");
+         bearer = j_get (rx, "access_token");
+         expiry = time (0) + atoi (j_get (rx, "expires_in") ? : "");
+         j_store_string (a, "bearer", bearer);
+         j_store_datetime (a, "expiry", expiry);
+         j_delete (&tx);
+         j_delete (&rx);
+         j_err (j_write_file (auth, auth_file));
+         bearer = j_get (a, "bearer");
       }
    }
+   if (!bearer)
+      errx (1, "No authentication bearer");
 
    poptFreeContext (optCon);
    return 0;
