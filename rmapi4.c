@@ -69,6 +69,10 @@ main (int argc, const char *argv[])
    const char *outprefix = NULL;
    int servicelevel = 0;
    int insurance = 0;
+   int issigned = 0;
+   int emailupdate = 0;
+   int smsupdate = 0;
+   int localcollect = 0;
    int weight = 0;
    int length = 0;
    int width = 0;
@@ -112,6 +116,10 @@ main (int argc, const char *argv[])
          {"safe-plave", 0, POPT_ARG_STRING, &safeplace, 0, "Safe place", "Text"},
          {"service-level", 0, POPT_ARG_INT, &servicelevel, 0, "Service Level", "1-99"},
          {"insurance", 0, POPT_ARG_INT, &insurance, 0, "Insurance", "£1-10000"},
+         {"signed", 0, POPT_ARG_NONE, &issigned, 0, "Signed", NULL},
+         {"email-update", 0, POPT_ARG_NONE, &emailupdate, 0, "Email updates", NULL},
+         {"sms-update", 0, POPT_ARG_NONE, &smsupdate, 0, "SMS updates", NULL},
+         {"local-collect", 0, POPT_ARG_NONE, &localcollect, 0, "Local collect", NULL},
          {"weight", 0, POPT_ARG_INT, &weight, 0, "Weight", "g"},
          {"length", 0, POPT_ARG_INT, &length, 0, "Length", "mm"},
          {"width", 0, POPT_ARG_INT, &width, 0, "Width", "mm"},
@@ -296,12 +304,12 @@ main (int argc, const char *argv[])
       if (countrycode && *countrycode)
          j_store_string (j, "CountryCode", countrycode);
       // --------------------------------------------------------------------------------
-      if (servicelevel || safeplace || insurance)
+      if (servicelevel || safeplace || insurance || issigned||emailupdate||smsupdate)
       {
          j = j_store_object (tx, "CarrierSpecifics");
          if (servicelevel)
             j_store_literalf (j, "ServiceLevel", "%02d", servicelevel);
-         if (safeplace || insurance)
+         if (safeplace || insurance || issigned||emailupdate||smsupdate)
          {
             j_t a = j_store_array (j, "ServiceEnhancements");
             if (safeplace)
@@ -317,6 +325,28 @@ main (int argc, const char *argv[])
                                insurance <= 1000 ? "CL1" : insurance <= 2500 ? "CL2" : insurance <= 5000 ? "CL3" : insurance <=
                                7500 ? "CL4" : "CL5");
             }
+            if (issigned)
+            {
+               j = j_append_object (a);
+               j_store_string (j, "Code", "Signed");
+            }
+            if (emailupdate)
+            {
+               j = j_append_object (a);
+               j_store_string (j, "Code", "Email");
+            }
+            if (smsupdate)
+            {
+               j = j_append_object (a);
+               j_store_string (j, "Code", "SMS");
+            }
+            if (localcollect)
+            {
+               j = j_append_object (a);
+               j_store_string (j, "Code", "LocalCollect");
+            }
+	    // CustomsEmail
+	    // CustomsPhone
          }
       }
       // --------------------------------------------------------------------------------
