@@ -47,6 +47,7 @@ main (int argc, const char *argv[])
    int createshipment = 0;
    int manifest = 0;
    const char *cancel = NULL;
+   const char *shipmentdate = NULL;     // NULL is allowed meaning default
    const char *contactname = NULL;
    const char *companyname = NULL;
    const char *contactemail = NULL;
@@ -66,6 +67,8 @@ main (int argc, const char *argv[])
    const char *safeplace = NULL;
    const char *outfile = NULL;
    const char *outprefix = NULL;
+   int servicelevel = 0;
+   int insurance = 0;
    int weight = 0;
    int length = 0;
    int width = 0;
@@ -89,6 +92,7 @@ main (int argc, const char *argv[])
          {"json", 0, POPT_ARG_NONE, &json, 0, "JSON (datastream) format"},
          {"zpl203", 0, POPT_ARG_NONE, &zpl203, 0, "Zebra 203dpi format"},
          {"zpl300", 0, POPT_ARG_NONE, &zpl300, 0, "Zebra 300dpi format"},
+         {"shipment-date", 0, POPT_ARG_STRING, &shipmentdate, 0, "Shipment date", "YYYY-MM-DD (TODAY)"},
          {"contact-name", 0, POPT_ARG_STRING, &contactname, 0, "Contact Name", "Name"},
          {"company-name", 0, POPT_ARG_STRING, &companyname, 0, "Company Name", "Company"},
          {"contact-email", 0, POPT_ARG_STRING, &contactemail, 0, "Contact Email", "Email"},
@@ -106,10 +110,12 @@ main (int argc, const char *argv[])
          {"reference", 0, POPT_ARG_STRING, &reference1, 0, "Reference1", "Reference1"},
          {"reference2", 0, POPT_ARG_STRING, &reference2, 0, "Reference2", "Reference2"},
          {"safe-plave", 0, POPT_ARG_STRING, &safeplace, 0, "Safe place", "Text"},
-         {"weight", 0, POPT_ARG_INT, &weight, 0, "Weight", "g ($WEIGHT)"},
-         {"length", 0, POPT_ARG_INT, &length, 0, "Length", "mm ($LENGTH)"},
-         {"width", 0, POPT_ARG_INT, &width, 0, "Width", "mm ($WIDTH)"},
-         {"height", 0, POPT_ARG_INT, &height, 0, "Height", "mm ($HEIGHT)"},
+         {"service-level", 0, POPT_ARG_INT, &servicelevel, 0, "Service Level", "1-99"},
+         {"insurance", 0, POPT_ARG_INT, &insurance, 0, "Insurance", "£1-10000"},
+         {"weight", 0, POPT_ARG_INT, &weight, 0, "Weight", "g"},
+         {"length", 0, POPT_ARG_INT, &length, 0, "Length", "mm"},
+         {"width", 0, POPT_ARG_INT, &width, 0, "Width", "mm"},
+         {"height", 0, POPT_ARG_INT, &height, 0, "Height", "mm"},
          {"auth-file", 'C', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &auth_file, 0, "Auth file", "filename"},
          {"client-id", 0, POPT_ARG_STRING, &clientid, 0, "Client ID (for setup)", "ID"},
          {"client-key", 0, POPT_ARG_STRING, &clientkey, 0, "Client Key (for setup)", "Key"},
@@ -248,6 +254,7 @@ main (int argc, const char *argv[])
       j_t tx = j_create (),
          rx = j_create (),
          j;
+      // --------------------------------------------------------------------------------
       j = j_store_object (tx, "ShipmentInformation");
       j_store_string (j, "LabelFormat", pdf ? "PDF" : png ? "PNG" : zpl203 ? "ZPL203DPI" : zpl300 ? "ZPL300DPI" : "DATASTREAM");
       j_store_string (j, "ContentType", contenttype);
@@ -255,15 +262,15 @@ main (int argc, const char *argv[])
       j_store_string (j, "DescriptionOfGoods", description);
       j_store_string (j, "WeightUnitOfMeasure", "KG");
       j_store_string (j, "DimensionsUnitOfMeasure", "CM");
-      // TODO SHIP DATE as parameter
-      // TODO SAFE PLACE
-      j_store_null (j, "ShipmentDate"); // Today
+      j_store_string (j, "ShipmentDate", shipmentdate);
+      // --------------------------------------------------------------------------------
       j = j_store_object (tx, "Shipper");
       j_store_string (j, "ShippingAccountId", accountid);
       if (reference1 && *reference1)
          j_store_string (j, "Reference1", reference1);
       if (reference2 && *reference2)
          j_store_string (j, "Reference2", reference2);
+      // --------------------------------------------------------------------------------
       j = j_store_object (tx, "Destination");
       j = j_store_object (j, "Address");
       if (contactname && *contactname)
@@ -288,6 +295,31 @@ main (int argc, const char *argv[])
          j_store_string (j, "County", county);
       if (countrycode && *countrycode)
          j_store_string (j, "CountryCode", countrycode);
+      // --------------------------------------------------------------------------------
+      if (servicelevel || safeplace || insurance)
+      {
+         j = j_store_object (tx, "CarrierSpecifics");
+         if (servicelevel)
+            j_store_literalf (j, "ServiceLevel", "%02d", servicelevel);
+         if (safeplace || insurance)
+         {
+            j_t a = j_store_array (j, "ServiceEnhancements");
+            if (safeplace)
+            {
+               j = j_append_object (a);
+               j_store_string (j, "Code", "Safeplace");
+               j_store_string (j, "SafeplaceLocation", safeplace);
+            }
+            if (insurance)
+            {
+               j = j_append_object (a);
+               j_store_string (j, "Code",
+                               insurance <= 1000 ? "CL1" : insurance <= 2500 ? "CL2" : insurance <= 5000 ? "CL3" : insurance <=
+                               7500 ? "CL4" : "CL5");
+            }
+         }
+      }
+      // --------------------------------------------------------------------------------
       j = j_store_array (tx, "Packages");
       j = j_append_object (j);
       if (weight)
@@ -298,6 +330,10 @@ main (int argc, const char *argv[])
          j_store_literalf (j, "Width", "%.2f", (float) width / 10);
          j_store_literalf (j, "Height", "%.2f", (float) height / 10);
       }
+      // --------------------------------------------------------------------------------
+      // Items
+      // Customs
+      // ReturnToSender
       char *e = j_curl (J_CURL_SEND, curl, tx, rx, bearer, "https://api.%s/v4/shipments/rm", site);
       j_log (debug, "rmapi", "createShipment", tx, rx);
       if (e)
