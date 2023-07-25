@@ -46,6 +46,7 @@ main (int argc, const char *argv[])
    const char *account = NULL;
    int createshipment = 0;
    int manifest = 0;
+   const char *cancel = NULL;
    const char *contactname = NULL;
    const char *companyname = NULL;
    const char *contactemail = NULL;
@@ -79,6 +80,7 @@ main (int argc, const char *argv[])
       const struct poptOption optionsTable[] = {
          {"user", 'd', POPT_ARG_STRING, &user, 0, "User", "user"},
          {"create-shipment", 's', POPT_ARG_NONE, &createshipment, 0, "Create Shipment", NULL},
+         {"cancel-shipment", 'c', POPT_ARG_STRING, &cancel, 0, "Cancel shipment (before manifest)", "TrackingId"},
          {"manifest", 's', POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
          {"outprefix", 'p', POPT_ARG_STRING, &outprefix, 0, "Output prefix", "file/pathname"},
          {"outfile", 'o', POPT_ARG_STRING, &outfile, 0, "Output file", "filename"},
@@ -358,6 +360,21 @@ main (int argc, const char *argv[])
       j_delete (&tx);
       j_delete (&rx);
 
+   }
+   if (cancel)
+   {
+      j_t tx = j_create (),
+         rx = j_create ();
+      j_store_string (tx, "Status", "Cancel");
+      j_store_string (tx, "Reason", "Order Cancelled"); // This is not arbitrary, an be this or Packed in Error
+      j_t a = j_store_array (tx, "ShipmentIds");
+      j_append_string (a, cancel);
+      char *e = j_curl (J_CURL_PUT, curl, tx, rx, bearer, "https://api.%s/v4/shipments/status", site);
+      j_log (debug, "rmapi", "Manifest", tx, rx);
+      if (e)
+         fail (e, rx);
+      j_delete (&tx);
+      j_delete (&rx);
    }
    if (manifest)
    {
