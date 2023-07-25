@@ -13,6 +13,9 @@
 #include <sys/file.h>
 #include <ajlcurl.h>
 
+// Pull requests welcome usually
+// Note, Royal Mail have What3Words extensions which we will NOT be doing for so many good reasons.
+
 void
 fail (const char *e, j_t rx)
 {
