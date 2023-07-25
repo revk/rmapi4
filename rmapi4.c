@@ -61,6 +61,7 @@ main (int argc, const char *argv[])
    const char *countrycode = NULL;
    const char *contenttype = NULL;
    const char *servicecode = NULL;
+   const char *packagetype = NULL;
    const char *description = NULL;
    const char *reference1 = NULL;
    const char *reference2 = NULL;
@@ -69,6 +70,7 @@ main (int argc, const char *argv[])
    const char *outprefix = NULL;
    int servicelevel = 0;
    int insurance = 0;
+   int value = 0;
    int issigned = 0;
    int emailupdate = 0;
    int smsupdate = 0;
@@ -110,12 +112,14 @@ main (int argc, const char *argv[])
          {"country-code", 0, POPT_ARG_STRING, &countrycode, 0, "Country code", "Country (GB)"},
          {"content-type", 0, POPT_ARG_STRING, &contenttype, 0, "Content Type", "NDX/DOX/HV (NDX)"},
          {"service-code", 0, POPT_ARG_STRING, &servicecode, 0, "Service code", "Service code"},
+         {"package-type", 0, POPT_ARG_STRING, &packagetype, 0, "Package Type", "Letter/LargeLetter/Parcel/PrintedPapers"},
          {"description", 0, POPT_ARG_STRING, &description, 0, "Description", "Description (Goods)"},
          {"reference", 0, POPT_ARG_STRING, &reference1, 0, "Reference1", "Reference1"},
          {"reference2", 0, POPT_ARG_STRING, &reference2, 0, "Reference2", "Reference2"},
          {"safe-plave", 0, POPT_ARG_STRING, &safeplace, 0, "Safe place", "Text"},
          {"service-level", 0, POPT_ARG_INT, &servicelevel, 0, "Service Level", "1-99"},
          {"insurance", 0, POPT_ARG_INT, &insurance, 0, "Insurance", "£1-10000"},
+         {"value", 0, POPT_ARG_INT, &value, 0, "Value", "£1-10000"},
          {"signed", 0, POPT_ARG_NONE, &issigned, 0, "Signed", NULL},
          {"email-update", 0, POPT_ARG_NONE, &emailupdate, 0, "Email updates", NULL},
          {"sms-update", 0, POPT_ARG_NONE, &smsupdate, 0, "SMS updates", NULL},
@@ -268,8 +272,10 @@ main (int argc, const char *argv[])
       j_store_string (j, "ContentType", contenttype);
       j_store_string (j, "ServiceCode", servicecode);
       j_store_string (j, "DescriptionOfGoods", description);
-      j_store_string (j, "WeightUnitOfMeasure", "KG");
-      j_store_string (j, "DimensionsUnitOfMeasure", "CM");
+      if (weight)
+         j_store_string (j, "WeightUnitOfMeasure", "KG");
+      if (width && height && length)
+         j_store_string (j, "DimensionsUnitOfMeasure", "CM");
       j_store_string (j, "ShipmentDate", shipmentdate);
       // --------------------------------------------------------------------------------
       j = j_store_object (tx, "Shipper");
@@ -304,12 +310,12 @@ main (int argc, const char *argv[])
       if (countrycode && *countrycode)
          j_store_string (j, "CountryCode", countrycode);
       // --------------------------------------------------------------------------------
-      if (servicelevel || safeplace || insurance || issigned||emailupdate||smsupdate)
+      if (servicelevel || safeplace || insurance || issigned || emailupdate || smsupdate)
       {
          j = j_store_object (tx, "CarrierSpecifics");
          if (servicelevel)
             j_store_literalf (j, "ServiceLevel", "%02d", servicelevel);
-         if (safeplace || insurance || issigned||emailupdate||smsupdate)
+         if (safeplace || insurance || issigned || emailupdate || smsupdate)
          {
             j_t a = j_store_array (j, "ServiceEnhancements");
             if (safeplace)
@@ -345,8 +351,8 @@ main (int argc, const char *argv[])
                j = j_append_object (a);
                j_store_string (j, "Code", "LocalCollect");
             }
-	    // CustomsEmail
-	    // CustomsPhone
+            // CustomsEmail
+            // CustomsPhone
          }
       }
       // --------------------------------------------------------------------------------
@@ -354,11 +360,19 @@ main (int argc, const char *argv[])
       j = j_append_object (j);
       if (weight)
          j_store_literalf (j, "DeclaredWeight", "%.3f", (float) weight / 1000);
+      if (value)
+      {
+         j_store_int (j, "DeclaredValue", value);
+         j_store_string (j, "CurrencyCode", "GBP");
+      }
+      if (packagetype)
+         j_store_string (j, "PackageType", packagetype);
       if (length && width && height)
       {
-         j_store_literalf (j, "Length", "%.2f", (float) length / 10);
-         j_store_literalf (j, "Width", "%.2f", (float) width / 10);
-         j_store_literalf (j, "Height", "%.2f", (float) height / 10);
+         j_t d = j_store_object (j, "Dimensions");
+         j_store_literalf (d, "Length", "%.2f", (float) length / 10);
+         j_store_literalf (d, "Width", "%.2f", (float) width / 10);
+         j_store_literalf (d, "Height", "%.2f", (float) height / 10);
       }
       // --------------------------------------------------------------------------------
       // Items
