@@ -15,6 +15,22 @@
 
 int debug = 0;
 
+void
+fail (const char *e, j_t rx)
+{
+   j_t errs = j_find (rx, "Errors");
+   if (errs)
+   {
+      j_t e = j_first (errs);
+      while (e)
+      {
+         fprintf (stderr, "Error %s: %s %s\n", j_get (e, "ErrorCode"), j_get (e, "Message"), j_get (e, "Cause"));
+         e = j_next (e);
+      }
+   }
+   errx (1, "Failed: %s", e);
+}
+
 int
 main (int argc, const char *argv[])
 {
@@ -26,6 +42,7 @@ main (int argc, const char *argv[])
    const char *clientkey = NULL;
    const char *account = NULL;
    int createshipment = 0;
+   int manifest = 0;
    const char *contactname = getenv ("LNAME");
    const char *companyname = getenv ("LCOMPANY");
    const char *contactemail = getenv ("LEMAIL");
@@ -58,6 +75,7 @@ main (int argc, const char *argv[])
       const struct poptOption optionsTable[] = {
          {"user", 'd', POPT_ARG_STRING, &user, 0, "User", "user"},
          {"create-shipment", 's', POPT_ARG_NONE, &createshipment, 0, "Create Shipment", NULL},
+         {"manifest", 's', POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
          {"label-pdf", 'o', POPT_ARG_STRING, &labelpdf, 0, "Label PDF file", "filename"},
          {"contact-name", 0, POPT_ARG_STRING, &contactname, 0, "Contact Name", "Name ($LNAME)"},
          {"company-name", 0, POPT_ARG_STRING, &companyname, 0, "Company Name", "Company ($LCOMPANY)"},
@@ -255,24 +273,16 @@ main (int argc, const char *argv[])
       char *e = j_curl (J_CURL_SEND, curl, tx, rx, bearer, "https://api.%s/v4/shipments/rm", site);
       j_log (debug, "rmapi", "createShipment", tx, rx);
       if (e)
-      {
-         j_t errs = j_find (rx, "Errors");
-         if (errs)
-         {
-            j_t e = j_first (errs);
-            while (e)
-            {
-               fprintf (stderr, "Error %s: %s %s\n", j_get (e, "ErrorCode"), j_get (e, "Message"), j_get (e, "Cause"));
-               e = j_next (e);
-            }
-         }
-         errx (1, "Failed: %s", e);
-      }
+         fail (e, rx);
       j_t packages = j_find (rx, "Packages");
       j_t p = j_first (packages);
       while (p)
       {                         // Should be one, but...
          printf ("%s", j_get (p, "TrackingNumber"));
+         const char *shipmentid = j_get (p, "ShipmentId");
+         e = j_curl (J_CURL_GET, curl, NULL, NULL, bearer, "https://api.%s/v4/shipments/printLabel/rm/%s", site, shipmentid);
+         if (e)
+            errx (1, "Print shipment failed: %s", e);
          p = j_next (p);
          if (p)
             printf ("\t");
@@ -294,6 +304,32 @@ main (int argc, const char *argv[])
       j_delete (&tx);
       j_delete (&rx);
 
+   }
+   if (manifest)
+   {
+      j_t tx = j_create (),
+         rx = j_create ();
+      j_store_string (tx, "ShippingAccountId", accountid);
+      char *e = j_curl (J_CURL_SEND, curl, tx, rx, bearer, "https://api.%s/v4/manifests/rm", site);
+      j_log (debug, "rmapi", "Manifest", tx, rx);
+      if (e)
+         fail (e, rx);
+      j_t m=j_first(rx);
+      while(m)
+      {
+      const char *image=j_get(m,"ManifestImage");
+      if(image)
+      {
+	        unsigned char *bin = NULL;
+           size_t len = j_base64d (image, &bin);
+           if (len)
+              fwrite (bin, len, 1, stdout);
+           free (bin);
+      }
+      m=j_next(m);
+      }
+      j_delete (&tx);
+      j_delete (&rx);
    }
    poptFreeContext (optCon);
    return 0;
