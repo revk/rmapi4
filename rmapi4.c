@@ -63,6 +63,7 @@ main (int argc, const char *argv[])
    const char *county = NULL;
    const char *countrycode = NULL;
    const char *contenttype = NULL;
+   char *type = NULL;           // Combined 
    const char *servicecode = NULL;
    const char *packagetype = NULL;
    const char *description = NULL;
@@ -93,7 +94,7 @@ main (int argc, const char *argv[])
          {"user", 'd', POPT_ARG_STRING, &user, 0, "User", "user"},
          {"create-shipment", 's', POPT_ARG_NONE, &createshipment, 0, "Create Shipment", NULL},
          {"cancel-shipment", 'c', POPT_ARG_STRING, &cancel, 0, "Cancel shipment (before manifest)", "TrackingId"},
-         {"manifest", 's', POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
+         {"manifest", 0, POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
          {"outprefix", 'p', POPT_ARG_STRING, &outprefix, 0, "Output prefix", "file/pathname"},
          {"outfile", 'o', POPT_ARG_STRING, &outfile, 0, "Output file", "filename"},
          {"pdf", 0, POPT_ARG_NONE, &pdf, 0, "PDF format"},
@@ -113,9 +114,10 @@ main (int argc, const char *argv[])
          {"postcode", 0, POPT_ARG_STRING, &postcode, 0, "Postcode", "Post code"},
          {"county", 0, POPT_ARG_STRING, &county, 0, "County", "County"},
          {"country-code", 0, POPT_ARG_STRING, &countrycode, 0, "Country code", "Country (GB)"},
-         {"content-type", 0, POPT_ARG_STRING, &contenttype, 0, "Content Type", "NDX/DOX/HV (NDX)"},
+         {"type", 't', POPT_ARG_STRING, &type, 0, "Combined type", "Service code/Package/Content Type"},
          {"service-code", 0, POPT_ARG_STRING, &servicecode, 0, "Service code", "Service code"},
          {"package-type", 0, POPT_ARG_STRING, &packagetype, 0, "Package Type", "Letter/LargeLetter/Parcel/PrintedPapers"},
+         {"content-type", 0, POPT_ARG_STRING, &contenttype, 0, "Content Type", "NDX/DOX/HV (NDX)"},
          {"description", 0, POPT_ARG_STRING, &description, 0, "Description", "Description (Goods)"},
          {"reference", 0, POPT_ARG_STRING, &reference1, 0, "Reference1", "Reference1"},
          {"reference2", 0, POPT_ARG_STRING, &reference2, 0, "Reference2", "Reference2"},
@@ -157,10 +159,32 @@ main (int argc, const char *argv[])
    }
    if (!countrycode || !*countrycode)
       countrycode = "GB";
-   if (servicecode && *servicecode && (!contenttype || !*contenttype))
-      contenttype = (!strncmp (servicecode, "CRL", 3) ? "DOX" : "NDX"); // Default, assume document for 1st/2nd post
+   if (!contenttype || !*contenttype)
+      contenttype = "NDX";
    if (!description || !*description)
       description = "Goods";
+   if (type)
+   {                            // Combined
+      if (servicecode)
+         errx (1, "--type or --service-code, not both");
+      servicecode = type;
+      char *s = strchr (type, '/');
+      if (s)
+      {
+         *s++ = 0;
+         if (packagetype)
+            errx (1, "--type or --package-type, not both");
+         packagetype = s;
+         s = strchr (type, '/');
+         if (s)
+         {
+            *s++ = 0;
+            if (contenttype)
+               errx (1, "--type or --content-type, not both");
+            contenttype = s;
+         }
+      }
+   }
    if (!pdf && !png && !json && !zpl203 && !zpl300)
       pdf = 1;
    if (pdf + png + json + zpl203 + zpl300 != 1)
