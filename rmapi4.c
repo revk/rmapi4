@@ -49,6 +49,7 @@ main (int argc, const char *argv[])
    const char *account = NULL;
    int createshipment = 0;
    int manifest = 0;
+   const char *getmanifest = NULL;
    const char *cancel = NULL;
    const char *shipmentdate = NULL;     // NULL is allowed meaning default
    const char *contactname = NULL;
@@ -95,6 +96,7 @@ main (int argc, const char *argv[])
          {"create-shipment", 's', POPT_ARG_NONE, &createshipment, 0, "Create Shipment", NULL},
          {"cancel-shipment", 'c', POPT_ARG_STRING, &cancel, 0, "Cancel shipment (before manifest)", "TrackingId"},
          {"manifest", 0, POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
+         {"get-manifest", 0, POPT_ARG_STRING, &getmanifest, 0, "Get manifest", "manifest"},
          {"outprefix", 'p', POPT_ARG_STRING, &outprefix, 0, "Output prefix", "file/pathname"},
          {"outfile", 'o', POPT_ARG_STRING, &outfile, 0, "Output file", "filename"},
          {"pdf", 0, POPT_ARG_NONE, &pdf, 0, "PDF format"},
@@ -477,7 +479,7 @@ main (int argc, const char *argv[])
       j_t a = j_store_array (tx, "ShipmentIds");
       j_append_string (a, cancel);
       char *e = j_curl (J_CURL_PUT, curl, tx, rx, bearer, "https://api.%s/v4/shipments/status", site);
-      j_log (debug, "rmapi", "Manifest", tx, rx);
+      j_log (debug, "rmapi", "cancelShipment", tx, rx);
       if (e)
          fail (e, rx);
       j_delete (&tx);
@@ -496,48 +498,87 @@ main (int argc, const char *argv[])
       while (m)
       {
          const char *manifestnumber = j_get (m, "ManifestNumber");
-         const char *image = j_get (m, "ManifestImage");
-         if (image)
+         if (!quiet)
+            printf ("%s", manifestnumber);
+         if (outfile || outprefix)
          {
-            unsigned char *bin = NULL;
-            size_t len = j_base64d (image, &bin);
-            if (len)
+            const char *image = j_get (m, "ManifestImage");
+            if (image)
             {
-               char *fn = NULL;
-               const char *format = "PDF";      // Always PDF
-               if (outfile)
-                  fn = strdup (outfile);
-               else if (outprefix)
+               unsigned char *bin = NULL;
+               size_t len = j_base64d (image, &bin);
+               if (len)
                {
-                  if (!manifestnumber)
-                     errx (1, "No manifest number");
-                  if (asprintf (&fn, "%s%s.%s", outprefix, manifestnumber, format) < 0)
-                     errx (1, "malloc");
-               }
-               if (fn)
-               {
+                  char *fn = NULL;
+                  if (outfile)
+                     fn = strdup (outfile);
+                  else
+                  {
+                     if (!manifestnumber)
+                        errx (1, "No manifest number");
+                     if (asprintf (&fn, "%s%s.PDF", outprefix, manifestnumber) < 0)
+                        errx (1, "malloc");
+                  }
                   FILE *f = fopen (fn, "w");
                   if (!f)
                      err (1, "Cannot create %s", fn);
                   free (fn);
                   fwrite (bin, len, 1, f);
                   fclose (f);
-                  if (!quiet)
-                     printf ("%s", manifestnumber);
-               } else
-                  fwrite (bin, len, 1, stdout);
+               }
+               free (bin);
             }
-            free (bin);
          }
          m = j_next (m);
          if (m)
          {
-            warnx ("Multiple manifest");
-            if ((outfile || outprefix) && !quiet)
+            if (outfile)
+               warnx ("Multiple manifests, only last one written to %s", outfile);
+            if (!quiet)
                printf ("\t");
          }
       }
       j_delete (&tx);
+      j_delete (&rx);
+   }
+   if (getmanifest)
+   {
+      j_t rx = j_create ();
+      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/manifests/rm/%s", site, getmanifest);
+      j_log (debug, "rmapi", "Manifest", NULL, rx);
+      if (e)
+         fail (e, rx);
+      const char *manifestnumber = j_get (rx, "ManifestNumber");
+      const char *image = j_get (rx, "ManifestImage");
+      if (image)
+      {
+         unsigned char *bin = NULL;
+         size_t len = j_base64d (image, &bin);
+         if (len)
+         {
+            char *fn = NULL;
+            if (outfile)
+               fn = strdup (outfile);
+            else if (outprefix)
+            {
+               if (!manifestnumber)
+                  errx (1, "No manifest number");
+               if (asprintf (&fn, "%s%s.PDF", outprefix, manifestnumber) < 0)
+                  errx (1, "malloc");
+            }
+            if (fn)
+            {
+               FILE *f = fopen (fn, "w");
+               if (!f)
+                  err (1, "Cannot create %s", fn);
+               free (fn);
+               fwrite (bin, len, 1, f);
+               fclose (f);
+            } else
+               fwrite (bin, len, 1, stdout);
+         }
+         free (bin);
+      }
       j_delete (&rx);
    }
    poptFreeContext (optCon);
