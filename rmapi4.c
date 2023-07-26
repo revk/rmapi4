@@ -50,6 +50,7 @@ main (int argc, const char *argv[])
    int createshipment = 0;
    int manifest = 0;
    const char *getmanifest = NULL;
+   const char *printmanifest = NULL;
    const char *cancel = NULL;
    const char *shipmentdate = NULL;     // NULL is allowed meaning default
    const char *contactname = NULL;
@@ -97,7 +98,8 @@ main (int argc, const char *argv[])
          {"create-shipment", 's', POPT_ARG_NONE, &createshipment, 0, "Create Shipment", NULL},
          {"cancel-shipment", 'c', POPT_ARG_STRING, &cancel, 0, "Cancel shipment (before manifest)", "TrackingId"},
          {"manifest", 0, POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
-         {"get-manifest", 0, POPT_ARG_STRING, &getmanifest, 0, "Get manifest", "manifest"},
+         {"get-manifest", 0, POPT_ARG_STRING, &getmanifest, 0, "Get manifest shipments", "manifest"},
+         {"print-manifest", 0, POPT_ARG_STRING, &printmanifest, 0, "Get manifest PDF", "manifest"},
          {"outprefix", 'p', POPT_ARG_STRING, &outprefix, 0, "Output prefix", "file/pathname"},
          {"outfile", 'o', POPT_ARG_STRING, &outfile, 0, "Output file", "filename"},
          {"pdf", 0, POPT_ARG_NONE, &pdf, 0, "PDF format"},
@@ -567,11 +569,11 @@ main (int argc, const char *argv[])
       j_delete (&tx);
       j_delete (&rx);
    }
-   if (getmanifest)
+   if (printmanifest)
    {
       j_t rx = j_create ();
-      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/manifests/rm/%s", site, getmanifest);
-      j_log (debug, "rmapi", "Manifest", NULL, rx);
+      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/manifests/rm/%s", site, printmanifest);
+      j_log (debug, "rmapi", "PrintManifest", NULL, rx);
       if (e)
          fail (e, rx);
       const char *manifestnumber = j_get (rx, "ManifestNumber");
@@ -604,6 +606,24 @@ main (int argc, const char *argv[])
                fwrite (bin, len, 1, stdout);
          }
          free (bin);
+      }
+      j_delete (&rx);
+   }
+   if (getmanifest)
+   {
+      j_t rx = j_create ();
+      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/manifests/rm/%s/shipments", site, getmanifest);
+      j_log (debug, "rmapi", "GetManifest", NULL, rx);
+      if (e)
+         fail (e, rx);
+      j_t s = j_find (rx, "Shipments");
+      s = j_first (s);
+      while (s)
+      {
+         printf ("%s", j_get (s, "TrackingNumber"));
+         s = j_next (s);
+         if (s)
+            printf ("\t");
       }
       j_delete (&rx);
    }
