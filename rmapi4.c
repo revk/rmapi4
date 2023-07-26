@@ -48,9 +48,9 @@ main (int argc, const char *argv[])
    const char *clientkey = NULL;
    const char *account = NULL;
    int createshipment = 0;
-   int manifest = 0;
+   int createmanifest = 0;
    const char *printshipment = NULL;
-   const char *getmanifest = NULL;
+   const char *listmanifest = NULL;
    const char *printmanifest = NULL;
    const char *cancel = NULL;
    const char *shipmentdate = NULL;     // NULL is allowed meaning default
@@ -99,9 +99,9 @@ main (int argc, const char *argv[])
          {"create-shipment", 's', POPT_ARG_NONE, &createshipment, 0, "Create Shipment", NULL},
          {"cancel-shipment", 'c', POPT_ARG_STRING, &cancel, 0, "Cancel shipment (before manifest)", "TrackingId"},
          {"print-shipment", 0, POPT_ARG_STRING, &printshipment, 0, "Get shipment for print", "TrackingId"},
-         {"manifest", 0, POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
-         {"get-manifest", 0, POPT_ARG_STRING, &getmanifest, 0, "Get manifest shipments", "manifest"},
-         {"print-manifest", 0, POPT_ARG_STRING, &printmanifest, 0, "Get manifest PDF", "manifest"},
+         {"create-manifest", 0, POPT_ARG_NONE, &createmanifest, 0, "Create manifest", NULL},
+         {"print-manifest", 0, POPT_ARG_STRING, &printmanifest, 0, "Get manifest for print", "manifestId"},
+         {"list-manifest", 0, POPT_ARG_STRING, &listmanifest, 0, "List manifest shipments", "manifestId"},
          {"outprefix", 'p', POPT_ARG_STRING, &outprefix, 0, "Output prefix", "file/pathname"},
          {"outfile", 'o', POPT_ARG_STRING, &outfile, 0, "Output file", "filename"},
          {"pdf", 0, POPT_ARG_NONE, &pdf, 0, "PDF format"},
@@ -503,7 +503,7 @@ main (int argc, const char *argv[])
       j_t a = j_store_array (tx, "ShipmentIds");
       j_append_string (a, cancel);
       char *e = j_curl (J_CURL_PUT, curl, tx, rx, bearer, "https://api.%s/v4/shipments/status", site);
-      j_log (debug, "rmapi", "cancelShipment", tx, rx);
+      j_log (debug, "rmapi", "CancelShipment", tx, rx);
       if (e)
          fail (e, rx);
       j_delete (&tx);
@@ -514,7 +514,7 @@ main (int argc, const char *argv[])
       j_t rx = j_create ();
       char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/shipments/printLabel/rm/%s?labelFormat=%s", site,
                         printshipment, labelformat);
-      j_log (debug, "rmapi", "printShipment", NULL, rx);
+      j_log (debug, "rmapi", "PrintShipment", NULL, rx);
       if (e)
          fail (e, rx);
       char *fn = NULL;
@@ -551,7 +551,7 @@ main (int argc, const char *argv[])
       }
       j_delete (&rx);
    }
-   if (manifest)
+   if (createmanifest)
    {
       j_t tx = j_create (),
          rx = j_create ();
@@ -647,10 +647,10 @@ main (int argc, const char *argv[])
       }
       j_delete (&rx);
    }
-   if (getmanifest)
+   if (listmanifest)
    {
       j_t rx = j_create ();
-      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/manifests/rm/%s/shipments", site, getmanifest);
+      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/manifests/rm/%s/shipments", site, listmanifest);
       j_log (debug, "rmapi", "GetManifest", NULL, rx);
       if (e)
          fail (e, rx);
