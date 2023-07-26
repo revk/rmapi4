@@ -80,6 +80,7 @@ main (int argc, const char *argv[])
    int emailupdate = 0;
    int smsupdate = 0;
    int localcollect = 0;
+   char *size = NULL;           // Combined
    int weight = 0;
    int length = 0;
    int width = 0;
@@ -132,6 +133,7 @@ main (int argc, const char *argv[])
          {"sms-update", 0, POPT_ARG_NONE, &smsupdate, 0, "SMS updates", NULL},
          {"local-collect", 0, POPT_ARG_NONE, &localcollect, 0, "Local collect", NULL},
          {"weight", 0, POPT_ARG_INT, &weight, 0, "Weight", "g"},
+         {"size", 0, POPT_ARG_STRING, &size, 0, "Size", "L/W/H"},
          {"length", 0, POPT_ARG_INT, &length, 0, "Length", "mm"},
          {"width", 0, POPT_ARG_INT, &width, 0, "Width", "mm"},
          {"height", 0, POPT_ARG_INT, &height, 0, "Height", "mm"},
@@ -167,23 +169,47 @@ main (int argc, const char *argv[])
       description = "Goods";
    if (type)
    {                            // Combined
+      char *s = type;
       if (servicecode)
          errx (1, "--type or --service-code, not both");
-      servicecode = type;
-      char *s = strchr (type, '/');
+      servicecode = s;
+      s = strchr (s, '/');
       if (s)
       {
          *s++ = 0;
          if (packagetype)
             errx (1, "--type or --package-type, not both");
          packagetype = s;
-         s = strchr (type, '/');
+         s = strchr (s, '/');
          if (s)
          {
             *s++ = 0;
             if (contenttype)
                errx (1, "--type or --content-type, not both");
             contenttype = s;
+         }
+      }
+   }
+   if (size)
+   {
+      char *s = size;
+      if (length)
+         errx (1, "--size or --length, not both");
+      length = atoi (s);
+      s = strchr (s, '/');
+      if (s)
+      {
+         *s++ = 0;
+         if (width)
+            errx (1, "--size or --width, not both");
+         width = atoi (s);
+         s = strchr (s, '/');
+         if (s)
+         {
+            *s++ = 0;
+            if (height)
+               errx (1, "--size or --height, not both");
+            height = atoi (s);
          }
       }
    }
