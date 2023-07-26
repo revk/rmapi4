@@ -49,6 +49,7 @@ main (int argc, const char *argv[])
    const char *account = NULL;
    int createshipment = 0;
    int manifest = 0;
+   const char *printshipment = NULL;
    const char *getmanifest = NULL;
    const char *printmanifest = NULL;
    const char *cancel = NULL;
@@ -97,6 +98,7 @@ main (int argc, const char *argv[])
          {"user", 'd', POPT_ARG_STRING, &user, 0, "User", "user"},
          {"create-shipment", 's', POPT_ARG_NONE, &createshipment, 0, "Create Shipment", NULL},
          {"cancel-shipment", 'c', POPT_ARG_STRING, &cancel, 0, "Cancel shipment (before manifest)", "TrackingId"},
+         {"print-shipment", 0, POPT_ARG_STRING, &printshipment, 0, "Get shipment for print", "TrackingId"},
          {"manifest", 0, POPT_ARG_NONE, &manifest, 0, "Create manifest", NULL},
          {"get-manifest", 0, POPT_ARG_STRING, &getmanifest, 0, "Get manifest shipments", "manifest"},
          {"print-manifest", 0, POPT_ARG_STRING, &printmanifest, 0, "Get manifest PDF", "manifest"},
@@ -219,6 +221,7 @@ main (int argc, const char *argv[])
       pdf = 1;
    if (pdf + png + json + zpl203 + zpl300 != 1)
       errx (1, "Pick one, --pdf, --png, --json, --zpl203, or --zpl300");
+   const char *labelformat = pdf ? "PDF" : png ? "PNG" : zpl203 ? "ZPL203DPI" : zpl300 ? "ZPL300DPI" : "DATASTREAM";
    if (outfile && outprefix)
       errx (1, "Use --outfile or --outprefix, not both");
    CURL *curl = curl_easy_init ();
@@ -325,7 +328,7 @@ main (int argc, const char *argv[])
          j;
       // --------------------------------------------------------------------------------
       j = j_store_object (tx, "ShipmentInformation");
-      j_store_string (j, "LabelFormat", pdf ? "PDF" : png ? "PNG" : zpl203 ? "ZPL203DPI" : zpl300 ? "ZPL300DPI" : "DATASTREAM");
+      j_store_string (j, "LabelFormat", labelformat);
       j_store_string (j, "ContentType", contenttype);
       j_store_string (j, "ServiceCode", servicecode);
       j_store_string (j, "DescriptionOfGoods", description);
@@ -445,15 +448,8 @@ main (int argc, const char *argv[])
       while (p)
       {                         // Should be one, but...
          trackingnumber = j_get (p, "TrackingNumber");
-         const char *shipmentid = j_get (p, "ShipmentId");
          if (!quiet)
             printf ("%s", trackingnumber);
-         j_t rx = j_create ();
-         e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/shipments/printLabel/rm/%s", site, shipmentid);
-         // Not bothering to log this
-         if (e)
-            fail (e, rx);
-         j_delete (&rx);
          p = j_next (p);
          if (p)
          {
@@ -511,6 +507,48 @@ main (int argc, const char *argv[])
       if (e)
          fail (e, rx);
       j_delete (&tx);
+      j_delete (&rx);
+   }
+   if (printshipment)
+   {
+      j_t rx = j_create ();
+      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/shipments/printLabel/rm/%s?labelFormat=%s", site,
+                        printshipment, labelformat);
+      j_log (debug, "rmapi", "printShipment", NULL, rx);
+      if (e)
+         fail (e, rx);
+      char *fn = NULL;
+      const char *format = j_get (rx, "LabelFormat");
+      if (format && !strcmp (format, "DATASTREAM"))
+         format = "JSON";
+      if (outfile)
+         fn = strdup (outfile);
+      else if (outprefix && asprintf (&fn, "%s%s.%s", outprefix, printshipment, format) < 0)
+         errx (1, "malloc");
+      if (!strcmp (format, "JSON"))
+      {
+         if (fn)
+            j_err (j_write_file (rx, fn));
+         else
+            j_err (j_write_pretty (rx, stdout));
+      } else
+      {
+         const char *label = j_get (rx, "Label");
+         if (label && *label)
+         {
+            FILE *f = fn ? fopen (fn, "w") : stdout;
+            if (!f)
+               err (1, "Cannot write %s", fn ? : "stdout");
+            free (fn);
+            unsigned char *bin = NULL;
+            size_t len = j_base64d (label, &bin);
+            if (len)
+               fwrite (bin, len, 1, f);
+            free (bin);
+            if (fn)
+               fclose (f);
+         }
+      }
       j_delete (&rx);
    }
    if (manifest)
