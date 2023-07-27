@@ -406,7 +406,7 @@ main (int argc, const char *argv[])
       if (countrycode && *countrycode)
          j_store_string (j, "CountryCode", countrycode);
       // --------------------------------------------------------------------------------
-      if (servicelevel || safeplace || insurance || issigned || emailupdate || smsupdate)
+      if (servicelevel || (safeplace&&*safeplace) || insurance || issigned || emailupdate || smsupdate)
       {
          j = j_store_object (tx, "CarrierSpecifics");
          if (servicelevel)
@@ -414,7 +414,7 @@ main (int argc, const char *argv[])
          if (safeplace || insurance || issigned || emailupdate || smsupdate)
          {
             j_t a = j_store_array (j, "ServiceEnhancements");
-            if (safeplace)
+            if (safeplace&&*safeplace)
             {
                j = j_append_object (a);
                j_store_string (j, "Code", "Safeplace");
