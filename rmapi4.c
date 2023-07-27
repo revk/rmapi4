@@ -179,7 +179,7 @@ main (int argc, const char *argv[])
       servicecode = s;
       s = strchr (s, '/');
       if (s)
-      { // More options
+      {                         // More options
          *s++ = 0;
          while (s && *s)
          {
@@ -206,8 +206,11 @@ main (int argc, const char *argv[])
                emailupdate = 1;
             else if (isdigit (*s))
             {                   // default weight
+               int w = atoi (s);
                if (!weight)
-                  weight = atoi (s);    // Default, allow override
+                  weight = w;
+               else if (weight > w)
+                  errx (1, "--weight exceeds weight in --type");
             } else
                errx (1, "Unknown --type %s", s);
             s = n;
