@@ -205,12 +205,20 @@ main (int argc, const char *argv[])
             else if (!strcmp (s, "Email"))
                emailupdate = 1;
             else if (isdigit (*s))
-            {                   // default weight
+            {                   // weight
                int w = atoi (s);
                if (!weight)
                   weight = w;
                else if (weight > w)
                   errx (1, "--weight exceeds weight in --type");
+            } else if (!strncmp (s, "£", 2))
+            {                   // insurance
+               s += 2;
+               int v = atoi (s);
+               if (!insurance)
+                  insurance = v;
+               else if (insurance > v)
+                  errx (1, "--insurance exceeds value in --type");
             } else
                errx (1, "Unknown --type %s", s);
             s = n;
