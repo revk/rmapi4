@@ -124,7 +124,7 @@ main (int argc, const char *argv[])
          {"description", 0, POPT_ARG_STRING, &description, 0, "Description", "Description (Goods)"},
          {"reference", 0, POPT_ARG_STRING, &reference1, 0, "Reference1", "Reference1"},
          {"reference2", 0, POPT_ARG_STRING, &reference2, 0, "Reference2", "Reference2"},
-         {"safe-plave", 0, POPT_ARG_STRING, &safeplace, 0, "Safe place", "Text"},
+         {"safe-place", 0, POPT_ARG_STRING, &safeplace, 0, "Safe place", "Text"},
          {"service-level", 0, POPT_ARG_INT, &servicelevel, 0, "Service Level", "1-99"},
          {"insurance", 0, POPT_ARG_INT, &insurance, 0, "Insurance", "£1-10000"},
          {"value", 0, POPT_ARG_INT, &value, 0, "Value", "£1-10000"},
