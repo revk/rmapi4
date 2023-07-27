@@ -48,7 +48,7 @@ Notable service codes (from above spreadsheet)
 
 The `--outprefix=` option is useful as it ensures a file is created when the `--create-shipment` is done, using the shipment tracking number, e.g. `TT000350284GB.PDF` but prefixed. Typically you might used `--outprefix=/tmp/` for example.
 
-The *stdout* from `--creat-shipment` provides one (or more, in theory, but unlikely) tracking numbers.
+The *stdout* from `--create-shipment` provides one (or more, in theory, but unlikely) tracking numbers.
 
 You can use `--print-shipment=` to get a file for an individual tracking number later if needed.
 
