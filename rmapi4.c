@@ -43,7 +43,7 @@ main (int argc, const char *argv[])
    int quiet = 0;
    const char *user = getenv ("DB") ? : "default";
    const char *auth_file = "/etc/rmapi4.json";
-   const char *site = "proshipping.net";
+   const char *domain = "proshipping.net";
    const char *clientid = NULL;
    const char *clientkey = NULL;
    const char *account = NULL;
@@ -104,11 +104,7 @@ main (int argc, const char *argv[])
          {"list-manifest", 0, POPT_ARG_STRING, &listmanifest, 0, "List manifest shipments", "manifestId"},
          {"outprefix", 'p', POPT_ARG_STRING, &outprefix, 0, "Output prefix", "file/pathname"},
          {"outfile", 'o', POPT_ARG_STRING, &outfile, 0, "Output file", "filename"},
-         {"pdf", 0, POPT_ARG_NONE, &pdf, 0, "PDF format"},
-         {"png", 0, POPT_ARG_NONE, &png, 0, "PNG format"},
-         {"json", 0, POPT_ARG_NONE, &json, 0, "JSON (datastream) format"},
-         {"zpl203", 0, POPT_ARG_NONE, &zpl203, 0, "Zebra 203dpi format"},
-         {"zpl300", 0, POPT_ARG_NONE, &zpl300, 0, "Zebra 300dpi format"},
+         {"type", 't', POPT_ARG_STRING, &type, 0, "Combined type", "Service code/.../..."},
          {"shipment-date", 0, POPT_ARG_STRING, &shipmentdate, 0, "Shipment date", "YYYY-MM-DD (TODAY)"},
          {"contact-name", 0, POPT_ARG_STRING, &contactname, 0, "Contact Name", "Name"},
          {"company-name", 0, POPT_ARG_STRING, &companyname, 0, "Company Name", "Company"},
@@ -121,7 +117,6 @@ main (int argc, const char *argv[])
          {"postcode", 0, POPT_ARG_STRING, &postcode, 0, "Postcode", "Post code"},
          {"county", 0, POPT_ARG_STRING, &county, 0, "County", "County"},
          {"country-code", 0, POPT_ARG_STRING, &countrycode, 0, "Country code", "Country (GB)"},
-         {"type", 't', POPT_ARG_STRING, &type, 0, "Combined type", "Service code/Package/Content Type"},
          {"service-code", 0, POPT_ARG_STRING, &servicecode, 0, "Service code", "Service code"},
          {"package-type", 0, POPT_ARG_STRING, &packagetype, 0, "Package Type", "Letter/LargeLetter/Parcel/PrintedPapers"},
          {"content-type", 0, POPT_ARG_STRING, &contenttype, 0, "Content Type", "NDX/DOX/HV (NDX)"},
@@ -141,11 +136,16 @@ main (int argc, const char *argv[])
          {"length", 0, POPT_ARG_INT, &length, 0, "Length", "mm"},
          {"width", 0, POPT_ARG_INT, &width, 0, "Width", "mm"},
          {"height", 0, POPT_ARG_INT, &height, 0, "Height", "mm"},
+         {"pdf", 0, POPT_ARG_NONE, &pdf, 0, "PDF format"},
+         {"png", 0, POPT_ARG_NONE, &png, 0, "PNG format"},
+         {"json", 0, POPT_ARG_NONE, &json, 0, "JSON (datastream) format"},
+         {"zpl203", 0, POPT_ARG_NONE, &zpl203, 0, "Zebra 203dpi format"},
+         {"zpl300", 0, POPT_ARG_NONE, &zpl300, 0, "Zebra 300dpi format"},
          {"auth-file", 'C', POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &auth_file, 0, "Auth file", "filename"},
          {"client-id", 0, POPT_ARG_STRING, &clientid, 0, "Client ID (for setup)", "ID"},
          {"client-key", 0, POPT_ARG_STRING, &clientkey, 0, "Client Key (for setup)", "Key"},
          {"account", 0, POPT_ARG_STRING, &account, 0, "Shipping account (for setup)", "Key"},
-         {"site", 0, POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &site, 0, "Base URL", "hostname"},
+         {"domain", 0, POPT_ARGFLAG_DOC_HIDDEN | POPT_ARG_STRING | POPT_ARGFLAG_SHOW_DEFAULT, &domain, 0, "Base URL", "hostname"},
          {"quiet", 'v', POPT_ARG_NONE, &quiet, 0, "Quiet"},
          {"debug", 'v', POPT_ARG_NONE, &debug, 0, "Debug"},
          // TODO international stuff
@@ -172,25 +172,45 @@ main (int argc, const char *argv[])
    if (!description || !*description)
       description = "Goods";
    if (type)
-   {                            // Combined
+   {                            // Combined - starts service-code, then various options in any order, slash separated
       char *s = type;
       if (servicecode)
          errx (1, "--type or --service-code, not both");
       servicecode = s;
       s = strchr (s, '/');
       if (s)
-      {
+      { // More options
          *s++ = 0;
-         if (packagetype)
-            errx (1, "--type or --package-type, not both");
-         packagetype = s;
-         s = strchr (s, '/');
-         if (s)
+         while (s && *s)
          {
-            *s++ = 0;
-            if (contenttype)
-               errx (1, "--type or --content-type, not both");
-            contenttype = s;
+            char *n = strchr (s, '/');
+            if (n)
+               *n++ = 0;
+            if (!strcmp (s, "NDX") || !strcmp (s, "DOX") || !strcmp (s, "HV"))
+            {                   // Content Type
+               if (contenttype)
+                  errx (1, "--type or --content-type, not both");
+               contenttype = s;
+            } else if (!strcmp (s, "Letter") || !strcmp (s, "LargeLetter") || !strcmp (s, "Parcel") || !strcmp (s, "PrintedPapers"))
+            {                   // Package Type
+               if (packagetype)
+                  errx (1, "--type or --package-type, not both");
+               packagetype = s;
+            } else if (!strcmp (s, "Signed"))
+               issigned = 1;
+            else if (!strcmp (s, "LocalCollect"))
+               localcollect = 1;
+            else if (!strcmp (s, "SMS"))
+               smsupdate = 1;
+            else if (!strcmp (s, "Email"))
+               emailupdate = 1;
+            else if (isdigit (*s))
+            {                   // default weight
+               if (!weight)
+                  weight = atoi (s);    // Default, allow override
+            } else
+               errx (1, "Unknown --type %s", s);
+            s = n;
          }
       }
    }
@@ -269,7 +289,7 @@ main (int argc, const char *argv[])
          char *basic = NULL;
          if (asprintf (&basic, "%s:%s", j_get (a, "client-id"), j_get (a, "client-key")) < 0)
             errx (1, "malloc");
-         char *e = j_curl (J_CURL_POST | J_CURL_BASIC, curl, tx, rx, basic, "https://authentication.%s/connect/token", site);
+         char *e = j_curl (J_CURL_POST | J_CURL_BASIC, curl, tx, rx, basic, "https://authentication.%s/connect/token", domain);
          free (basic);
          if (e)
             fail (e, rx);
@@ -289,7 +309,7 @@ main (int argc, const char *argv[])
       if (!accountid)
       {                         // Find account
          j_t rx = j_create ();
-         char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/shippingAccounts", site);
+         char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/shippingAccounts", domain);
          j_log (debug, "rmapi", "shippingAccounts", NULL, rx);
          if (e)
             fail (e, rx);
@@ -438,7 +458,7 @@ main (int argc, const char *argv[])
       // Items
       // Customs
       // ReturnToSender
-      char *e = j_curl (J_CURL_SEND, curl, tx, rx, bearer, "https://api.%s/v4/shipments/rm", site);
+      char *e = j_curl (J_CURL_SEND, curl, tx, rx, bearer, "https://api.%s/v4/shipments/rm", domain);
       j_log (debug, "rmapi", "createShipment", tx, rx);
       if (e)
          fail (e, rx);
@@ -502,7 +522,7 @@ main (int argc, const char *argv[])
       j_store_string (tx, "Reason", "Order Cancelled"); // This is not arbitrary, an be this or Packed in Error
       j_t a = j_store_array (tx, "ShipmentIds");
       j_append_string (a, cancel);
-      char *e = j_curl (J_CURL_PUT, curl, tx, rx, bearer, "https://api.%s/v4/shipments/status", site);
+      char *e = j_curl (J_CURL_PUT, curl, tx, rx, bearer, "https://api.%s/v4/shipments/status", domain);
       j_log (debug, "rmapi", "CancelShipment", tx, rx);
       if (e)
          fail (e, rx);
@@ -512,7 +532,7 @@ main (int argc, const char *argv[])
    if (printshipment)
    {
       j_t rx = j_create ();
-      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/shipments/printLabel/rm/%s?labelFormat=%s", site,
+      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/shipments/printLabel/rm/%s?labelFormat=%s", domain,
                         printshipment, labelformat);
       j_log (debug, "rmapi", "PrintShipment", NULL, rx);
       if (e)
@@ -556,7 +576,7 @@ main (int argc, const char *argv[])
       j_t tx = j_create (),
          rx = j_create ();
       j_store_string (tx, "ShippingAccountId", accountid);
-      char *e = j_curl (J_CURL_SEND, curl, tx, rx, bearer, "https://api.%s/v4/manifests/rm", site);
+      char *e = j_curl (J_CURL_SEND, curl, tx, rx, bearer, "https://api.%s/v4/manifests/rm", domain);
       j_log (debug, "rmapi", "Manifest", tx, rx);
       if (e)
          fail (e, rx);
@@ -610,7 +630,7 @@ main (int argc, const char *argv[])
    if (printmanifest)
    {
       j_t rx = j_create ();
-      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/manifests/rm/%s", site, printmanifest);
+      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/manifests/rm/%s", domain, printmanifest);
       j_log (debug, "rmapi", "PrintManifest", NULL, rx);
       if (e)
          fail (e, rx);
@@ -650,7 +670,7 @@ main (int argc, const char *argv[])
    if (listmanifest)
    {
       j_t rx = j_create ();
-      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/manifests/rm/%s/shipments", site, listmanifest);
+      char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/manifests/rm/%s/shipments", domain, listmanifest);
       j_log (debug, "rmapi", "GetManifest", NULL, rx);
       if (e)
          fail (e, rx);
