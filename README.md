@@ -27,6 +27,23 @@ It starts with the `--service-code`, e.g. `CRL1` and then a number of `/` separa
 |*number*|Maximum `--weight` (grammes), can also set `--weight` if same or lower|
 |`£`*number*|Maximum `--insurance`, can also set `--insurance` if same or lower|
 
+For example `--type=TPN/1000/Parcel` means `ROYAL MAIL TRACKED 24` weight default/max 1kg, and a `Parcel`. `--type=STL1/100/Letter` means a 1st class letter up to 100g.
+
+Notable service codes (from above spreadsheet)
+
+|Code(s)|Meaning|
+|-------|-------|
+|`STL1` `STL2`|Normal 1st/2nd class account postage|
+|`SD1` `SD2` `SD3`|Special delivery by 1pm (£750/£1000/£2500)|
+|`SD4` `SD5` `SD6`|Special delivery by 9am (£750/£1000/£2500)|
+|`SDA` `SDB` `SDC`|Special delivery by 1pm with ID check (£750/£1000/£2500)|
+|`SDE` `SDF` `SDG`|Special delivery by 9am with ID check (£750/£1000/£2500)|
+|`SDH` `SDJ` `SDK`|Special delivery by 1pm with age check (£750/£1000/£2500)|
+|`SDM` `SDN` `SDQ`|Special delivery by 9am with age check (£750/£1000/£2500)|
+|`TPM` `TPL`|Tracked 24/48 high value|
+|`TPN` `TPS`|Tracked 24/48|
+|`TSN` `TSS`|Tracked Return 24/48|
+
 ## Creating shipments
 
 The `--outprefix=` option is useful as it ensures a file is created when the `--create-shipment` is done, using the shipment tracking number, e.g. `TT000350284GB.PDF` but prefixed. Typically you might used `--outprefix=/tmp/` for example.
