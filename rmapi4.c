@@ -16,6 +16,9 @@
 // Pull requests welcome usually
 // Note, Royal Mail have What3Words extensions which we will NOT be doing for so many good reasons.
 
+int debug = 0;
+int quiet = 0;
+
 void
 fail (const char *e, j_t rx)
 {
@@ -25,13 +28,13 @@ fail (const char *e, j_t rx)
       j_t e = j_first (errs);
       while (e)
       {
-         fprintf (stderr, "Error %s: %s %s\n", j_get (e, "ErrorCode"), j_get (e, "Message"), j_get (e, "Cause"));
+         fprintf (quiet ? stderr : stdout, "Error %s: %s %s\n", j_get (e, "ErrorCode"), j_get (e, "Message"), j_get (e, "Cause"));
          e = j_next (e);
       }
    }
    const char *msg = j_get (rx, "Message");
    if (msg)
-      fprintf (stderr, "Error %s\n", msg);
+      fprintf (quiet ? stderr : stdout, "Error %s\n", msg);
    errx (1, "Failed: %s", e);
 }
 
@@ -39,8 +42,6 @@ int
 main (int argc, const char *argv[])
 {
    j_iso8601utc = 1;
-   int debug = 0;
-   int quiet = 0;
    const char *user = getenv ("DB") ? : "default";
    const char *auth_file = "/etc/rmapi4.json";
    const char *domain = "proshipping.net";
@@ -354,6 +355,10 @@ main (int argc, const char *argv[])
    {
       if (!servicecode || !*servicecode)
          errx (1, "Must specify --service-code");
+      if (!weight)
+         errx (1, "Specify --weight");
+      if (!packagetype || !*packagetype)
+         errx (1, "Specify --package-type");
       j_t tx = j_create (),
          rx = j_create (),
          j;
