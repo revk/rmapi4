@@ -14,7 +14,7 @@ The `--help` explains the options for the command. You will need to call with `-
 
 One of the options that needs more explanation is `--type=` as it covers several other options in one go. This is mainly to allow for a pull down of postage service settings in one string for easy of integration on to a web form.
 
-It starts with the `--service-code`, e.g. `CRL1` and then a number of `/` separated values. The service codes are listed in [V4 Reference Data spreadsheet](V4 Reference Data  v1.xlsx).
+It starts with the `--service-code`, e.g. `CRL1` and then a number of `/` separated values. The service codes are listed in [V4 Reference Data spreadsheet](V4ReferenceDatav1.xlsx).
 
 |Value|Meaning|
 |-----|-------|
