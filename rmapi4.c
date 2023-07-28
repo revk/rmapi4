@@ -38,6 +38,14 @@ fail (const char *e, j_t rx)
    errx (1, "Failed: %s", e);
 }
 
+void
+fails (const char *e)
+{
+   if (!quiet)
+      printf ("%s", e);
+   errx (1, "%s", e);
+}
+
 int
 main (int argc, const char *argv[])
 {
@@ -53,7 +61,7 @@ main (int argc, const char *argv[])
    const char *printshipment = NULL;
    const char *listmanifest = NULL;
    const char *printmanifest = NULL;
-   const char *cancel = NULL;
+   const char *cancelshipment = NULL;
    const char *shipmentdate = NULL;     // NULL is allowed meaning default
    const char *contactname = NULL;
    const char *companyname = NULL;
@@ -98,7 +106,7 @@ main (int argc, const char *argv[])
       const struct poptOption optionsTable[] = {
          {"user", 'd', POPT_ARG_STRING, &user, 0, "User", "user"},
          {"create-shipment", 's', POPT_ARG_NONE, &createshipment, 0, "Create Shipment", NULL},
-         {"cancel-shipment", 'c', POPT_ARG_STRING, &cancel, 0, "Cancel shipment (before manifest)", "TrackingId"},
+         {"cancel-shipment", 'c', POPT_ARG_STRING, &cancelshipment, 0, "Cancel shipment (before manifest)", "TrackingId"},
          {"print-shipment", 0, POPT_ARG_STRING, &printshipment, 0, "Get shipment for print", "TrackingId"},
          {"create-manifest", 0, POPT_ARG_NONE, &createmanifest, 0, "Create manifest", NULL},
          {"print-manifest", 0, POPT_ARG_STRING, &printmanifest, 0, "Get manifest for print", "manifestId"},
@@ -176,7 +184,7 @@ main (int argc, const char *argv[])
    {                            // Combined - starts service-code, then various options in any order, slash separated
       char *s = type;
       if (servicecode)
-         errx (1, "--type or --service-code, not both");
+         fails ("--type or --service-code, not both");
       servicecode = s;
       s = strchr (s, '/');
       if (s)
@@ -190,12 +198,12 @@ main (int argc, const char *argv[])
             if (!strcmp (s, "NDX") || !strcmp (s, "DOX") || !strcmp (s, "HV"))
             {                   // Content Type
                if (contenttype)
-                  errx (1, "--type or --content-type, not both");
+                  fails ("--type or --content-type, not both");
                contenttype = s;
             } else if (!strcmp (s, "Letter") || !strcmp (s, "LargeLetter") || !strcmp (s, "Parcel") || !strcmp (s, "PrintedPapers"))
             {                   // Package Type
                if (packagetype)
-                  errx (1, "--type or --package-type, not both");
+                  fails ("--type or --package-type, not both");
                packagetype = s;
             } else if (!strcmp (s, "Signed"))
                issigned = 1;
@@ -211,7 +219,7 @@ main (int argc, const char *argv[])
                if (!weight)
                   weight = w;
                else if (weight > w)
-                  errx (1, "--weight exceeds weight in --type");
+                  fails ("--weight exceeds weight in --type");
             } else if (!strncmp (s, "£", 2))
             {                   // insurance
                s += 2;
@@ -219,7 +227,7 @@ main (int argc, const char *argv[])
                if (!insurance)
                   insurance = v;
                else if (insurance > v)
-                  errx (1, "--insurance exceeds value in --type");
+                  fails ("--insurance exceeds value in --type");
             } else
                errx (1, "Unknown --type %s", s);
             s = n;
@@ -230,21 +238,21 @@ main (int argc, const char *argv[])
    {
       char *s = size;
       if (length)
-         errx (1, "--size or --length, not both");
+         fails ("--size or --length, not both");
       length = atoi (s);
       s = strchr (s, '/');
       if (s)
       {
          *s++ = 0;
          if (width)
-            errx (1, "--size or --width, not both");
+            fails ("--size or --width, not both");
          width = atoi (s);
          s = strchr (s, '/');
          if (s)
          {
             *s++ = 0;
             if (height)
-               errx (1, "--size or --height, not both");
+               fails ("--size or --height, not both");
             height = atoi (s);
          }
       }
@@ -252,13 +260,13 @@ main (int argc, const char *argv[])
    if (!pdf && !png && !json && !zpl203 && !zpl300)
       pdf = 1;
    if (pdf + png + json + zpl203 + zpl300 != 1)
-      errx (1, "Pick one, --pdf, --png, --json, --zpl203, or --zpl300");
+      fails ("Pick one, --pdf, --png, --json, --zpl203, or --zpl300");
    const char *labelformat = pdf ? "PDF" : png ? "PNG" : zpl203 ? "ZPL203DPI" : zpl300 ? "ZPL300DPI" : "DATASTREAM";
    if (outfile && outprefix)
-      errx (1, "Use --outfile or --outprefix, not both");
+      fails ("Use --outfile or --outprefix, not both");
    CURL *curl = curl_easy_init ();
    if (!curl)
-      errx (1, "malloc");
+      fails ("malloc");
    if (debug)
       curl_easy_setopt (curl, CURLOPT_VERBOSE, 1L);
 
@@ -300,13 +308,13 @@ main (int argc, const char *argv[])
          j_store_string (tx, "grant_type", "client_credentials");
          char *basic = NULL;
          if (asprintf (&basic, "%s:%s", j_get (a, "client-id"), j_get (a, "client-key")) < 0)
-            errx (1, "malloc");
+            fails ("malloc");
          char *e = j_curl (J_CURL_POST | J_CURL_BASIC, curl, tx, rx, basic, "https://authentication.%s/connect/token", domain);
          free (basic);
          if (e)
             fail (e, rx);
          if (strcasecmp (j_get (rx, "token_type") ? : "", "Bearer"))
-            errx (1, "Failed to get authentication");
+            fails ("Failed to get authentication");
          bearer = j_get (rx, "access_token");
          expiry = time (0) + atoi (j_get (rx, "expires_in") ? : "");
          j_store_string (a, "bearer", bearer);
@@ -327,7 +335,7 @@ main (int argc, const char *argv[])
             fail (e, rx);
          j_t list = j_find (rx, "ShippingAccounts");
          if (!list)
-            errx (1, "No ShippingAccounts");
+            fails ("No ShippingAccounts");
          j_t s = j_first (list);
          while (s)
          {
@@ -339,7 +347,7 @@ main (int argc, const char *argv[])
             s = j_next (s);
          }
          if (!s)
-            errx (1, "Account not found");
+            fails ("Account not found");
          j_store_string (a, "account-id", j_get (s, "ShippingAccountId"));
          j_delete (&rx);
          j_err (j_write_file (auth, auth_file));
@@ -348,17 +356,19 @@ main (int argc, const char *argv[])
       close (fd);
    }
    if (!bearer)
-      errx (1, "No authentication bearer");
+      fails ("No authentication bearer");
    if (!accountid)
-      errx (1, "No account id");
+      fails ("No account id");
+   if (!createshipment && !printshipment && !cancelshipment && !createmanifest && !listmanifest && !printmanifest)
+      fails ("You need to request something, e.g. --create-shipment");
    if (createshipment)
    {
       if (!servicecode || !*servicecode)
-         errx (1, "Must specify --service-code");
+         fails ("Must specify --service-code");
       if (!weight)
-         errx (1, "Specify --weight");
+         fails ("Specify --weight");
       if (!packagetype || !*packagetype)
-         errx (1, "Specify --package-type");
+         fails ("Specify --package-type");
       j_t tx = j_create (),
          rx = j_create (),
          j;
@@ -406,7 +416,7 @@ main (int argc, const char *argv[])
       if (countrycode && *countrycode)
          j_store_string (j, "CountryCode", countrycode);
       // --------------------------------------------------------------------------------
-      if (servicelevel || (safeplace&&*safeplace) || insurance || issigned || emailupdate || smsupdate)
+      if (servicelevel || (safeplace && *safeplace) || insurance || issigned || emailupdate || smsupdate)
       {
          j = j_store_object (tx, "CarrierSpecifics");
          if (servicelevel)
@@ -414,7 +424,7 @@ main (int argc, const char *argv[])
          if (safeplace || insurance || issigned || emailupdate || smsupdate)
          {
             j_t a = j_store_array (j, "ServiceEnhancements");
-            if (safeplace&&*safeplace)
+            if (safeplace && *safeplace)
             {
                j = j_append_object (a);
                j_store_string (j, "Code", "Safeplace");
@@ -503,9 +513,9 @@ main (int argc, const char *argv[])
          if (outfile)
             fn = strdup (outfile);
          else if (!trackingnumber)
-            errx (1, "No tracking number");
+            fails ("No tracking number");
          else if (asprintf (&fn, "%s%s.%s", outprefix, trackingnumber, format) < 0)
-            errx (1, "malloc");
+            fails ("malloc");
          if (!strcmp (format, "JSON"))
             j_err (j_write_file (rx, fn));
          else
@@ -530,14 +540,14 @@ main (int argc, const char *argv[])
       j_delete (&rx);
 
    }
-   if (cancel)
+   if (cancelshipment)
    {
       j_t tx = j_create (),
          rx = j_create ();
       j_store_string (tx, "Status", "Cancel");
       j_store_string (tx, "Reason", "Order Cancelled"); // This is not arbitrary, an be this or Packed in Error
       j_t a = j_store_array (tx, "ShipmentIds");
-      j_append_string (a, cancel);
+      j_append_string (a, cancelshipment);
       char *e = j_curl (J_CURL_PUT, curl, tx, rx, bearer, "https://api.%s/v4/shipments/status", domain);
       j_log (debug, "rmapi", "CancelShipment", tx, rx);
       if (e)
@@ -560,7 +570,7 @@ main (int argc, const char *argv[])
       if (outfile)
          fn = strdup (outfile);
       else if (outprefix && asprintf (&fn, "%s%s.%s", outprefix, printshipment, format) < 0)
-         errx (1, "malloc");
+         fails ("malloc");
       if (!strcmp (format, "JSON"))
       {
          if (fn)
@@ -617,9 +627,9 @@ main (int argc, const char *argv[])
                   else
                   {
                      if (!manifestnumber)
-                        errx (1, "No manifest number");
+                        fails ("No manifest number");
                      if (asprintf (&fn, "%s%s.PDF", outprefix, manifestnumber) < 0)
-                        errx (1, "malloc");
+                        fails ("malloc");
                   }
                   FILE *f = fopen (fn, "w");
                   if (!f)
@@ -664,9 +674,9 @@ main (int argc, const char *argv[])
             else if (outprefix)
             {
                if (!manifestnumber)
-                  errx (1, "No manifest number");
+                  fails ("No manifest number");
                if (asprintf (&fn, "%s%s.PDF", outprefix, manifestnumber) < 0)
-                  errx (1, "malloc");
+                  fails ("malloc");
             }
             if (fn)
             {
