@@ -79,7 +79,7 @@ main (int argc, const char *argv[])
    const char *servicecode = NULL;
    const char *packagetype = NULL;
    const char *description = NULL;
-   const char *department= NULL;
+   const char *department = NULL;
    const char *reference1 = NULL;
    const char *reference2 = NULL;
    const char *safeplace = NULL;
@@ -416,8 +416,6 @@ main (int argc, const char *argv[])
       // --------------------------------------------------------------------------------
       j = j_store_object (tx, "Shipper");
       j_store_string (j, "ShippingAccountId", accountid);
-      if (isret)
-         addaddress ();
       if (department && *department)
          j_store_string (j, "DepartmentNumber", department);
       if (reference1 && *reference1)
@@ -427,6 +425,11 @@ main (int argc, const char *argv[])
       // --------------------------------------------------------------------------------
       j = j_store_object (tx, "Destination");
       addaddress ();
+      if (isret)
+      {
+         j = j_store_object (tx, "ReturnToSender");
+         addaddress ();
+      }
       // --------------------------------------------------------------------------------
       if (servicelevel || (safeplace && *safeplace) || insurance || issigned || emailupdate || smsupdate)
       {
