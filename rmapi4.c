@@ -164,7 +164,7 @@ main (int argc, const char *argv[])
          {"quiet", 'v', POPT_ARG_NONE, &quiet, 0, "Quiet"},
          {"debug", 'v', POPT_ARG_NONE, &debug, 0, "Debug"},
          // TODO international stuff
-	 // TODO selecting shipping location
+         // TODO selecting shipping location
          POPT_AUTOHELP {}
       };
 
@@ -384,6 +384,8 @@ main (int argc, const char *argv[])
          fails ("Specify --line1");
       if (!postcode || !*postcode)
          fails ("Specify --postcode");
+      if (strcmp (countrycode, "GB"))
+         fails ("Export is not yet coded in this version");     // TODO
       int isret = !strncmp (servicecode, "TS", 2);      // Is a return
       j_t tx = j_create (),
          rx = j_create (),
@@ -429,6 +431,7 @@ main (int argc, const char *argv[])
       // --------------------------------------------------------------------------------
       j = j_store_object (tx, "Shipper");
       j_store_string (j, "ShippingAccountId", accountid);
+      // TODO shipping location selection
       if (department && *department)
          j_store_string (j, "DepartmentNumber", department);
       if (reference1 && *reference1)
