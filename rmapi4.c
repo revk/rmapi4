@@ -63,6 +63,8 @@ main (int argc, const char *argv[])
    const char *printmanifest = NULL;
    const char *cancelshipment = NULL;
    const char *shipmentdate = NULL;     // NULL is allowed meaning default
+   const char *returnname = NULL;
+   const char *returncompany = NULL;
    const char *contactname = NULL;
    const char *companyname = NULL;
    const char *contactemail = NULL;
@@ -127,6 +129,8 @@ main (int argc, const char *argv[])
          {"postcode", 0, POPT_ARG_STRING, &postcode, 0, "Postcode", "Post code"},
          {"county", 0, POPT_ARG_STRING, &county, 0, "County", "County"},
          {"country-code", 0, POPT_ARG_STRING, &countrycode, 0, "Country code", "Country (GB)"},
+         {"return-name", 0, POPT_ARG_STRING, &returnname, 0, "Return Name", "Name"},
+         {"return-company", 0, POPT_ARG_STRING, &returncompany, 0, "Return Company", "Name"},
          {"service-code", 0, POPT_ARG_STRING, &servicecode, 0, "Service code", "Service code"},
          {"package-type", 0, POPT_ARG_STRING, &packagetype, 0, "Package Type", "Letter/LargeLetter/Parcel/PrintedPapers"},
          {"content-type", 0, POPT_ARG_STRING, &contenttype, 0, "Content Type", "NDX/DOX/HV (NDX)"},
@@ -424,7 +428,28 @@ main (int argc, const char *argv[])
          j_store_string (j, "Reference2", reference2);
       // --------------------------------------------------------------------------------
       j = j_store_object (tx, "Destination");
-      addaddress ();
+      if (isret)
+      {
+         if (!returnname || !*returnname)
+            fails ("Specify --return-name");
+         j_t rx = j_create ();
+         char *e = j_curl (J_CURL_GET, curl, NULL, rx, bearer, "https://api.%s/v4/shippingAccounts/rm/%s/shippingLocations", domain,
+                           accountid);
+         j_log (debug, "rmapi", "shippingLocations", NULL, rx);
+         if (e)
+            fail (e, rx);
+         j_t a = j_find (rx, "ShippingLocations");
+         a = j_first (a);
+         a = j_find (a, "Address");
+         if (!a)
+            fails ("No return address found");
+         a = j_store_json (j, "Address", &a);
+         j_store_string (a, "ContactName", returnname);
+         if (returncompany && *returncompany)
+            j_store_string (a, "CompanyName", returncompany);
+         j_delete (&rx);
+      } else
+         addaddress ();
       if (isret)
       {
          j = j_store_object (tx, "ReturnToSender");
