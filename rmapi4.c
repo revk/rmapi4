@@ -378,29 +378,29 @@ main (int argc, const char *argv[])
       // --------------------------------------------------------------------------------
       void addaddress (void)
       {
-         j = j_store_object (j, "Address");
+         j_t a = j_store_object (j, "Address");
          if (contactname && *contactname)
-            j_store_string (j, "ContactName", contactname);
+            j_store_string (a, "ContactName", contactname);
          if (companyname && *companyname)
-            j_store_string (j, "CompanyName", companyname);
+            j_store_string (a, "CompanyName", companyname);
          if (contactemail && *contactemail)
-            j_store_string (j, "ContactEmail", contactemail);
+            j_store_string (a, "ContactEmail", contactemail);
          if (contactphone && *contactphone)
-            j_store_string (j, "ContactPhone", contactphone);
+            j_store_string (a, "ContactPhone", contactphone);
          if (line1 && *line1)
-            j_store_string (j, "Line1", line1);
+            j_store_string (a, "Line1", line1);
          if (line2 && *line2)
-            j_store_string (j, "Line2", line2);
+            j_store_string (a, "Line2", line2);
          if (line3 && *line3)
-            j_store_string (j, "Line3", line3);
+            j_store_string (a, "Line3", line3);
          if (town && *town)
-            j_store_string (j, "Town", town);
+            j_store_string (a, "Town", town);
          if (postcode && *postcode)
-            j_store_string (j, "Postcode", postcode);
+            j_store_string (a, "Postcode", postcode);
          if (county && *county)
-            j_store_string (j, "County", county);
+            j_store_string (a, "County", county);
          if (countrycode && *countrycode)
-            j_store_string (j, "CountryCode", countrycode);
+            j_store_string (a, "CountryCode", countrycode);
       }
       // --------------------------------------------------------------------------------
       j = j_store_object (tx, "ShipmentInformation");
