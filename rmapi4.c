@@ -375,6 +375,14 @@ main (int argc, const char *argv[])
          fails ("Specify --weight");
       if (!packagetype || !*packagetype)
          fails ("Specify --package-type");
+      if (!contactname || !*contactname)
+         fails ("Specify --contact-name");
+      if (!town || !*town)
+         fails ("Specify --town");
+      if (!line1 || !*line1)
+         fails ("Specify --line1");
+      if (!postcode || !*postcode)
+         fails ("Specify --postcode");
       int isret = !strncmp (servicecode, "TS", 2);      // Is a return
       j_t tx = j_create (),
          rx = j_create (),
