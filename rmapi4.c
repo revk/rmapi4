@@ -512,6 +512,7 @@ main (int argc, const char *argv[])
       // --------------------------------------------------------------------------------
       j = j_store_array (tx, "Packages");
       j = j_append_object (j);
+      j_store_int (j, "PackageOccurrence", 1);  // We only do one package
       if (weight)
          j_store_literalf (j, "DeclaredWeight", "%.3f", (float) weight / 1000);
       if (value)
