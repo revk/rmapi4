@@ -79,6 +79,7 @@ main (int argc, const char *argv[])
    const char *servicecode = NULL;
    const char *packagetype = NULL;
    const char *description = NULL;
+   const char *department= NULL;
    const char *reference1 = NULL;
    const char *reference2 = NULL;
    const char *safeplace = NULL;
@@ -130,8 +131,9 @@ main (int argc, const char *argv[])
          {"package-type", 0, POPT_ARG_STRING, &packagetype, 0, "Package Type", "Letter/LargeLetter/Parcel/PrintedPapers"},
          {"content-type", 0, POPT_ARG_STRING, &contenttype, 0, "Content Type", "NDX/DOX/HV (NDX)"},
          {"description", 0, POPT_ARG_STRING, &description, 0, "Description", "Description (Goods)"},
-         {"reference", 0, POPT_ARG_STRING, &reference1, 0, "Reference1", "Reference1"},
-         {"reference2", 0, POPT_ARG_STRING, &reference2, 0, "Reference2", "Reference2"},
+         {"reference", 0, POPT_ARG_STRING, &reference1, 0, "Reference1", "Reference"},
+         {"department", 0, POPT_ARG_STRING, &department, 0, "Department", "Reference"},
+         {"reference2", 0, POPT_ARG_STRING, &reference2, 0, "Reference2", "Reference"},
          {"safe-place", 0, POPT_ARG_STRING, &safeplace, 0, "Safe place", "Text"},
          {"service-level", 0, POPT_ARG_INT, &servicelevel, 0, "Service Level", "1-99"},
          {"insurance", 0, POPT_ARG_INT, &insurance, 0, "Insurance", "£1-10000"},
@@ -369,9 +371,37 @@ main (int argc, const char *argv[])
          fails ("Specify --weight");
       if (!packagetype || !*packagetype)
          fails ("Specify --package-type");
+      int isret = !strncmp (servicecode, "TS", 2);      // Is a return
       j_t tx = j_create (),
          rx = j_create (),
          j;
+      // --------------------------------------------------------------------------------
+      void addaddress (void)
+      {
+         j = j_store_object (j, "Address");
+         if (contactname && *contactname)
+            j_store_string (j, "ContactName", contactname);
+         if (companyname && *companyname)
+            j_store_string (j, "CompanyName", companyname);
+         if (contactemail && *contactemail)
+            j_store_string (j, "ContactEmail", contactemail);
+         if (contactphone && *contactphone)
+            j_store_string (j, "ContactPhone", contactphone);
+         if (line1 && *line1)
+            j_store_string (j, "Line1", line1);
+         if (line2 && *line2)
+            j_store_string (j, "Line2", line2);
+         if (line3 && *line3)
+            j_store_string (j, "Line3", line3);
+         if (town && *town)
+            j_store_string (j, "Town", town);
+         if (postcode && *postcode)
+            j_store_string (j, "Postcode", postcode);
+         if (county && *county)
+            j_store_string (j, "County", county);
+         if (countrycode && *countrycode)
+            j_store_string (j, "CountryCode", countrycode);
+      }
       // --------------------------------------------------------------------------------
       j = j_store_object (tx, "ShipmentInformation");
       j_store_string (j, "LabelFormat", labelformat);
@@ -386,35 +416,17 @@ main (int argc, const char *argv[])
       // --------------------------------------------------------------------------------
       j = j_store_object (tx, "Shipper");
       j_store_string (j, "ShippingAccountId", accountid);
+      if (isret)
+         addaddress ();
+      if (department && *department)
+         j_store_string (j, "DepartmentNumber", department);
       if (reference1 && *reference1)
          j_store_string (j, "Reference1", reference1);
       if (reference2 && *reference2)
          j_store_string (j, "Reference2", reference2);
       // --------------------------------------------------------------------------------
       j = j_store_object (tx, "Destination");
-      j = j_store_object (j, "Address");
-      if (contactname && *contactname)
-         j_store_string (j, "ContactName", contactname);
-      if (companyname && *companyname)
-         j_store_string (j, "CompanyName", companyname);
-      if (contactemail && *contactemail)
-         j_store_string (j, "ContactEmail", contactemail);
-      if (contactphone && *contactphone)
-         j_store_string (j, "ContactPhone", contactphone);
-      if (line1 && *line1)
-         j_store_string (j, "Line1", line1);
-      if (line2 && *line2)
-         j_store_string (j, "Line2", line2);
-      if (line3 && *line3)
-         j_store_string (j, "Line3", line3);
-      if (town && *town)
-         j_store_string (j, "Town", town);
-      if (postcode && *postcode)
-         j_store_string (j, "Postcode", postcode);
-      if (county && *county)
-         j_store_string (j, "County", county);
-      if (countrycode && *countrycode)
-         j_store_string (j, "CountryCode", countrycode);
+      addaddress ();
       // --------------------------------------------------------------------------------
       if (servicelevel || (safeplace && *safeplace) || insurance || issigned || emailupdate || smsupdate)
       {
