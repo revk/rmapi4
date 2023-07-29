@@ -164,6 +164,7 @@ main (int argc, const char *argv[])
          {"quiet", 'v', POPT_ARG_NONE, &quiet, 0, "Quiet"},
          {"debug", 'v', POPT_ARG_NONE, &debug, 0, "Debug"},
          // TODO international stuff
+	 // TODO selecting account ID
          // TODO selecting shipping location
          POPT_AUTOHELP {}
       };
