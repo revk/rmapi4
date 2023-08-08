@@ -520,20 +520,20 @@ main (int argc, const char *argv[])
       j = j_store_array (tx, "Packages");
       for (int i = 0; i < packages; i++)
       {
-         j = j_append_object (j);
-         j_store_int (j, "PackageOccurrence", i + 1);
+         j_t p = j_append_object (j);
+         j_store_int (p, "PackageOccurrence", i + 1);
          if (weight)
-            j_store_literalf (j, "DeclaredWeight", "%.3f", (float) weight / 1000 / packages);
+            j_store_literalf (p, "DeclaredWeight", "%.3f", (float) weight / 1000 / packages);
          if (value)
          {
-            j_store_int (j, "DeclaredValue", value / packages);
-            j_store_string (j, "CurrencyCode", "GBP");
+            j_store_int (p, "DeclaredValue", value / packages);
+            j_store_string (p, "CurrencyCode", "GBP");
          }
          if (packagetype)
-            j_store_string (j, "PackageType", packagetype);
+            j_store_string (p, "PackageType", packagetype);
          if (length && width && height)
          {
-            j_t d = j_store_object (j, "Dimensions");
+            j_t d = j_store_object (p, "Dimensions");
             j_store_literalf (d, "Length", "%.2f", (float) length / 10);
             j_store_literalf (d, "Width", "%.2f", (float) width / 10);
             j_store_literalf (d, "Height", "%.2f", (float) height / 10);
