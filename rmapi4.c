@@ -87,6 +87,7 @@ main (int argc, const char *argv[])
    const char *safeplace = NULL;
    const char *outfile = NULL;
    const char *outprefix = NULL;
+   int packages = 1;
    int servicelevel = 0;
    int insurance = 0;
    int value = 0;
@@ -118,6 +119,7 @@ main (int argc, const char *argv[])
          {"outfile", 'o', POPT_ARG_STRING, &outfile, 0, "Output file", "filename"},
          {"type", 't', POPT_ARG_STRING, &type, 0, "Combined type", "Service code/.../..."},
          {"shipment-date", 0, POPT_ARG_STRING, &shipmentdate, 0, "Shipment date", "YYYY-MM-DD (TODAY)"},
+         {"packages", 0, POPT_ARG_INT | POPT_ARGFLAG_SHOW_DEFAULT, &packages, 0, "Packages (all alike)", "N"},
          {"contact-name", 0, POPT_ARG_STRING, &contactname, 0, "Contact Name", "Name"},
          {"company-name", 0, POPT_ARG_STRING, &companyname, 0, "Company Name", "Company"},
          {"contact-email", 0, POPT_ARG_STRING, &contactemail, 0, "Contact Email", "Email"},
@@ -146,11 +148,11 @@ main (int argc, const char *argv[])
          {"email-update", 0, POPT_ARG_NONE, &emailupdate, 0, "Email updates", NULL},
          {"sms-update", 0, POPT_ARG_NONE, &smsupdate, 0, "SMS updates", NULL},
          {"local-collect", 0, POPT_ARG_NONE, &localcollect, 0, "Local collect", NULL},
-         {"weight", 0, POPT_ARG_INT, &weight, 0, "Weight", "g"},
-         {"size", 0, POPT_ARG_STRING, &size, 0, "Size", "L/W/H"},
-         {"length", 0, POPT_ARG_INT, &length, 0, "Length", "mm"},
-         {"width", 0, POPT_ARG_INT, &width, 0, "Width", "mm"},
-         {"height", 0, POPT_ARG_INT, &height, 0, "Height", "mm"},
+         {"weight", 0, POPT_ARG_INT, &weight, 0, "Weight (total)", "g"},
+         {"size", 0, POPT_ARG_STRING, &size, 0, "Size (each package)", "L/W/H"},
+         {"length", 0, POPT_ARG_INT, &length, 0, "Length (each package)", "mm"},
+         {"width", 0, POPT_ARG_INT, &width, 0, "Width (each package)", "mm"},
+         {"height", 0, POPT_ARG_INT, &height, 0, "Height (each package)", "mm"},
          {"pdf", 0, POPT_ARG_NONE, &pdf, 0, "PDF format"},
          {"png", 0, POPT_ARG_NONE, &png, 0, "PNG format"},
          {"json", 0, POPT_ARG_NONE, &json, 0, "JSON (datastream) format"},
@@ -516,23 +518,26 @@ main (int argc, const char *argv[])
       }
       // --------------------------------------------------------------------------------
       j = j_store_array (tx, "Packages");
-      j = j_append_object (j);
-      j_store_int (j, "PackageOccurrence", 1);  // We only do one package
-      if (weight)
-         j_store_literalf (j, "DeclaredWeight", "%.3f", (float) weight / 1000);
-      if (value)
+      for (int i = 0; i < packages; i++)
       {
-         j_store_int (j, "DeclaredValue", value);
-         j_store_string (j, "CurrencyCode", "GBP");
-      }
-      if (packagetype)
-         j_store_string (j, "PackageType", packagetype);
-      if (length && width && height)
-      {
-         j_t d = j_store_object (j, "Dimensions");
-         j_store_literalf (d, "Length", "%.2f", (float) length / 10);
-         j_store_literalf (d, "Width", "%.2f", (float) width / 10);
-         j_store_literalf (d, "Height", "%.2f", (float) height / 10);
+         j = j_append_object (j);
+         j_store_int (j, "PackageOccurrence", i + 1);
+         if (weight)
+            j_store_literalf (j, "DeclaredWeight", "%.3f", (float) weight / 1000 / packages);
+         if (value)
+         {
+            j_store_int (j, "DeclaredValue", value / packages);
+            j_store_string (j, "CurrencyCode", "GBP");
+         }
+         if (packagetype)
+            j_store_string (j, "PackageType", packagetype);
+         if (length && width && height)
+         {
+            j_t d = j_store_object (j, "Dimensions");
+            j_store_literalf (d, "Length", "%.2f", (float) length / 10);
+            j_store_literalf (d, "Width", "%.2f", (float) width / 10);
+            j_store_literalf (d, "Height", "%.2f", (float) height / 10);
+         }
       }
       // --------------------------------------------------------------------------------
       // Items
