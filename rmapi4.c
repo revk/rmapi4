@@ -227,16 +227,16 @@ main (int argc, const char *argv[])
             {                   // weight
                int w = atoi (s);
                if (!weight)
-                  weight = w;
-               else if (weight / packages > w)
+                  weight = w * packages;
+               else if (weight > w * packages)
                   fails ("--weight exceeds weight in --type");
             } else if (!strncmp (s, "£", 2))
             {                   // insurance
                s += 2;
                int v = atoi (s);
                if (!insurance)
-                  insurance = v;
-               else if (insurance / packages > v)
+                  insurance = v * packages;
+               else if (insurance > v * packages)
                   fails ("--insurance exceeds value in --type");
             } else
                errx (1, "Unknown --type %s", s);
