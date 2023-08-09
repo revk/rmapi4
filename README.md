@@ -24,8 +24,8 @@ It starts with the `--service-code`, e.g. `CRL1` and then a number of `/` separa
 |`LocalCollect`|Set `--local-collect`|
 |`SMS`|Set `--sms-update`|
 |`Email`|Set `--email-update`|
-|*number*|Maximum `--weight` (grammes), can also set `--weight` if same or lower|
-|`£`*number*|Maximum `--insurance`, can also set `--insurance` if same or lower|
+|*number*|Maximum `--weight` (grammes) per parcel, can also set `--weight` if same or lower|
+|`£`*number*|Maximum `--insurance` per parcel, can also set `--insurance` if same or lower|
 
 For example `--type=TPN/1000/Parcel` means `ROYAL MAIL TRACKED 24` weight default/max 1kg, and a `Parcel`. `--type=STL1/100/Letter` means a 1st class letter up to 100g.
 
