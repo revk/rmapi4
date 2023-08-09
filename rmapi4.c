@@ -225,18 +225,18 @@ main (int argc, const char *argv[])
                emailupdate = 1;
             else if (isdigit (*s))
             {                   // weight
-               int w = atoi (s);
+               int w = atoi (s) * packages;     // per package
                if (!weight)
-                  weight = w * packages;
-               else if (weight > w * packages)
+                  weight = w;
+               else if (weight > w)
                   fails ("--weight exceeds weight in --type");
             } else if (!strncmp (s, "£", 2))
             {                   // insurance
                s += 2;
-               int v = atoi (s);
+               int v = atoi (s) * packages;     // per package
                if (!insurance)
-                  insurance = v * packages;
-               else if (insurance > v * packages)
+                  insurance = v;
+               else if (insurance > v)
                   fails ("--insurance exceeds value in --type");
             } else
                errx (1, "Unknown --type %s", s);
